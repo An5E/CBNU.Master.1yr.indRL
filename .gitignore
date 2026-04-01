@@ -1,0 +1,8 @@
+*.pdf
+*.pptx
+*.txt
+*.png
+*.lnk
+book
+**/__pycache__
+*.pyc
