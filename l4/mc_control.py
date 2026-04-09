@@ -14,7 +14,7 @@ def greedy_probs(Q, state, epsilon=0, action_size=4):
 class McAgent:
     def __init__(self):
         self.gamma = 0.9
-        self.epsilon = 0.1
+        self.epsilon = 0.5
         self.alpha = 0.1
         self.action_size = 4
 
@@ -62,6 +62,8 @@ for episode in range(episodes):
         if done:
             agent.update()
             break
+        elif state in env.wall_state:
+            continue
 
         state = next_state
 env.render_q(agent.Q)
