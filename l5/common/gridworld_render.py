@@ -62,7 +62,7 @@ class Renderer:
                         txt = txt + ' (GOAL)'
                     ax.text(x+.1, ys-y-0.9, txt)
 
-                if (v is not None) and state != self.wall_state:
+                if (v is not None) and state not in self.wall_state:
                     if print_value:
                         offsets = [(0.4, -0.15), (-0.15, -0.3)]
                         key = 0
@@ -70,7 +70,7 @@ class Renderer:
                         offset = offsets[key]
                         ax.text(x+offset[0], ys-y+offset[1], "{:12.2f}".format(v[y, x]))
 
-                if policy is not None and state != self.wall_state:
+                if policy is not None and state not in self.wall_state:
                     actions = policy[state]
                     max_actions = [kv[0] for kv in actions.items() if kv[1] == max(actions.values())]
 
@@ -83,7 +83,7 @@ class Renderer:
                             continue
                         ax.text(x+0.45+offset[0], ys-y-0.5+offset[1], arrow)
 
-                if state == self.wall_state:
+                if state in self.wall_state:
                     ax.add_patch(plt.Rectangle((x,ys-y-1), 1, 1, fc=(0.4, 0.4, 0.4, 1.)))
         plt.show()
 
@@ -133,7 +133,7 @@ class Renderer:
                         2: (-0.2, 0.4),
                         3: (0.4, 0.4),
                     }
-                    if state == self.wall_state:
+                    if state in self.wall_state:
                         ax.add_patch(plt.Rectangle((tx, ty), 1, 1, fc=(0.4, 0.4, 0.4, 1.)))
                     elif state in self.goal_state:
                         ax.add_patch(plt.Rectangle((tx, ty), 1, 1, fc=(0., 1., 0., 1.)))
