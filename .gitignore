@@ -6,3 +6,7 @@
 book
 **/__pycache__
 *.pyc
+
+indRL
+
+*.zip
