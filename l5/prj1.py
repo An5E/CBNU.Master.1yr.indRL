@@ -6,16 +6,16 @@ import random
 def get_solar_power(hour, tilt_angle):
     # 논문 Figure 5의 특성: 정오(12-13시)에 최대 전력, 특정 각도에서 피크 발생
     # 6시~18시까지 최적 각도가 10~18도 사이에서 변하는 포물선 모델
-    center_angle = 10 + 8 * np.sin(np.pi * (hour) / 12) # 이론적 최적 각도(MPA)
-    max_p = 3800 * np.sin(np.pi * (hour) / 12) # 시간대별 최대 전력 (W)
+    center_angle = 10 + 8 * np.sin(np.pi * (hour-6) / 12) # 이론적 최적 각도(MPA)
+    max_p = 3800 * np.sin(np.pi * (hour-6) / 12) # 시간대별 최대 전력 (W)
     
     # 각도가 최적에서 멀어질수록 전력 감소 (가우시안 분포 근사)
-    power = max_p * np.exp(-((tilt_angle - center_angle)**2) / 50)
+    power = max_p * np.exp(-((tilt_angle - center_angle)**2) / 1060)
     return max(0, power)
 
 # 2. Q-러닝 파라미터 설정 (논문 330-331p 참조)
 hours = np.arange(0, 24)          # 6:00 ~ 18:00
-possible_angles = np.linspace(0, 30, 61) # 0.5도 단위로 0~30도 상태 구성
+possible_angles = np.linspace(10, 80, 141) # 0.5도 단위로 0~30도 상태 구성
 actions = [-1.0, -0.5, 0, 0.5, 1.0]      # 각도 변경 단계 (Action list)
 
 q_table = np.zeros((len(hours), len(possible_angles)))
@@ -57,6 +57,8 @@ for ep in range(episodes):
 
 # 4. 결과 도출 (Figure 6 재현)
 theoretical_mpa = [10 + 8 * np.sin(np.pi * (h - 6) / 12) for h in hours]
+
+print(theoretical_mpa)
 tracking_mpa = []
 
 for i in range(len(hours)):
