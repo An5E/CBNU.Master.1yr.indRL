@@ -5,15 +5,15 @@ import matplotlib.pyplot as plt
 # 1. 환경 설정
 # ---------------------------
 
-TIME_STEPS = 100          # 하루를 100 step으로 단순화
-MAX_ANGLE = 90            # 패널 각도 범위 (-90 ~ 90)
-ANGLE_STEP = 5            # 이산화 단위
+TIME_STEPS = 24          # 하루를 24 step으로 단순화
+# MAX_ANGLE = 90            # 패널 경사각 범위 (-90 ~ 90)
+ANGLE_STEP = 24            # 이산화 단위
 
 ACTIONS = [-2, -1, 0, 1, 2]  # 각도 변화 (step 단위)
 N_ACTIONS = len(ACTIONS)
 
 # 상태 이산화
-ANGLE_BINS = np.arange(-90, 95, ANGLE_STEP)
+ANGLE_BINS = np.arange(10, 20, ANGLE_STEP)
 N_STATES = len(ANGLE_BINS)
 
 def discretize_angle(angle):
@@ -24,8 +24,7 @@ def discretize_angle(angle):
 # ---------------------------
 
 def sun_angle(t):
-    # -90 → +90 (동→서)
-    return -90 + 180 * (t / TIME_STEPS)
+    return 130 - (110 * np.cos(t * (90 / TIME_STEPS)))
 
 # ---------------------------
 # 3. 발전량 모델
@@ -39,28 +38,29 @@ def power(panel_angle, sun_angle):
 # 4. Q-learning 설정
 # ---------------------------
 
-Q = np.zeros((N_STATES, N_ACTIONS))
+Q = np.full((N_STATES, N_ACTIONS), 1/N_ACTIONS) # ! 정책 확률 초기화 (.2)
 
 alpha = 0.1
 gamma = 0.9
-epsilon = 0.3
-episodes = 500
+epsilon = 0.8
+episodes = 1 # 500
 
 # ---------------------------
 # 5. 학습
 # ---------------------------
 
-for ep in range(episodes):
-    panel_angle = 0  # 초기 각도
+for ep in range(episodes): # ! 2:
+    panel_angle = 10  # 초기 각도
 
     for t in range(TIME_STEPS - 1):
         s = discretize_angle(panel_angle)
 
         # epsilon-greedy
-        if np.random.rand() < epsilon:
-            a_idx = np.random.randint(N_ACTIONS)
+        if np.random.rand() < epsilon: # ! 3
+            
+            a_idx = np.random.randint(N_ACTIONS) # ! 5
         else:
-            a_idx = np.argmax(Q[s])
+            a_idx = np.argmax(Q[s]) # ! 12
 
         action = ACTIONS[a_idx]
 
@@ -72,6 +72,8 @@ for ep in range(episodes):
         p_now = power(panel_angle, sun_angle(t))
         p_next = power(next_angle, sun_angle(t + 1))
         reward = p_next - p_now
+        
+        # print(f"Episode {ep}, Time {t}, State {s}, Action {action}, Reward {reward:.4f} ( Power change: {p_next} - {p_now} )\n")
 
         s_next = discretize_angle(next_angle)
 
