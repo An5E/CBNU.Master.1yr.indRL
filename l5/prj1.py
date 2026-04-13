@@ -1,146 +1,95 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
-# ---------------------------
-# 1. 환경 설정
-# ---------------------------
+# 1. Figure 5: 시간 및 각도에 따른 출력 전력 모델링 (근사 함수)
+def get_solar_power(hour, tilt_angle):
+    # 논문 Figure 5의 특성: 정오(12-13시)에 최대 전력, 특정 각도에서 피크 발생
+    # 6시~18시까지 최적 각도가 10~18도 사이에서 변하는 포물선 모델
+    center_angle = 10 + 8 * np.sin(np.pi * (hour - 6) / 12) # 이론적 최적 각도(MPA)
+    max_p = 2000 * np.sin(np.pi * (hour - 6) / 12) # 시간대별 최대 전력 (W)
+    
+    # 각도가 최적에서 멀어질수록 전력 감소 (가우시안 분포 근사)
+    power = max_p * np.exp(-((tilt_angle - center_angle)**2) / 50)
+    return max(0, power)
 
-TIME_STEPS = 24          # 하루를 24 step으로 단순화
-# MAX_ANGLE = 90            # 패널 경사각 범위 (-90 ~ 90)
-ANGLE_STEP = 24            # 이산화 단위
+# 2. Q-러닝 파라미터 설정 (논문 330-331p 참조)
+hours = np.arange(6, 19)          # 6:00 ~ 18:00
+possible_angles = np.linspace(0, 30, 61) # 0.5도 단위로 0~30도 상태 구성
+actions = [-1.0, -0.5, 0, 0.5, 1.0]      # 각도 변경 단계 (Action list)
 
-ACTIONS = [-2, -1, 0, 1, 2]  # 각도 변화 (step 단위)
-N_ACTIONS = len(ACTIONS)
-
-# 상태 이산화
-ANGLE_BINS = np.arange(10, 20, ANGLE_STEP)
-N_STATES = len(ANGLE_BINS)
-
-def discretize_angle(angle):
-    return int(np.digitize(angle, ANGLE_BINS) - 1)
-
-# ---------------------------
-# 2. 태양 위치 (간단 모델)
-# ---------------------------
-
-def sun_angle(t):
-    return 130 - (110 * np.cos(t * (90 / TIME_STEPS)))
-
-# ---------------------------
-# 3. 발전량 모델
-# ---------------------------
-
-def power(panel_angle, sun_angle):
-    theta = np.radians(panel_angle - sun_angle)
-    return max(0, np.cos(theta))
-
-# ---------------------------
-# 4. Q-learning 설정
-# ---------------------------
-
-Q = np.full((N_STATES, N_ACTIONS), 1/N_ACTIONS) # ! 정책 확률 초기화 (.2)
-
-alpha = 0.1
+q_table = np.zeros((len(hours), len(possible_angles)))
+learning_rate = 0.1
 gamma = 0.9
-epsilon = 0.8
-episodes = 1 # 500
+epsilon = 0.1 # e-greedy
 
-# ---------------------------
-# 5. 학습
-# ---------------------------
-
-for ep in range(episodes): # ! 2:
-    panel_angle = 10  # 초기 각도
-
-    for t in range(TIME_STEPS - 1):
-        s = discretize_angle(panel_angle)
-
-        # epsilon-greedy
-        if np.random.rand() < epsilon: # ! 3
-            
-            a_idx = np.random.randint(N_ACTIONS) # ! 5
-        else:
-            a_idx = np.argmax(Q[s]) # ! 12
-
-        action = ACTIONS[a_idx]
-
-        # 다음 상태
-        next_angle = panel_angle + action * ANGLE_STEP
-        next_angle = np.clip(next_angle, -90, 90)
-
-        # 보상 (논문 핵심)
-        p_now = power(panel_angle, sun_angle(t))
-        p_next = power(next_angle, sun_angle(t + 1))
-        reward = p_next - p_now
+# 3. 학습 과정: Figure 5의 전력을 보상으로 사용
+episodes = 2000
+for ep in range(episodes):
+    for h_idx, hour in enumerate(hours):
+        # 초기 각도 설정
+        curr_angle_idx = random.randint(0, len(possible_angles)-1)
         
-        # print(f"Episode {ep}, Time {t}, State {s}, Action {action}, Reward {reward:.4f} ( Power change: {p_next} - {p_now} )\n")
+        for step in range(10): # 각 시간대별 최적 각도 탐색 시도
+            # 행동 선택 (e-greedy)
+            if random.random() < epsilon:
+                a_idx = random.randint(0, len(actions)-1)
+            else:
+                a_idx = np.argmax(q_table[h_idx, curr_angle_idx])
+            
+            # 다음 상태(각도) 계산
+            prev_angle = possible_angles[curr_angle_idx]
+            next_angle = np.clip(prev_angle + actions[a_idx], 0, 30)
+            next_angle_idx = np.argmin(np.abs(possible_angles - next_angle))
+            
+            # 보상 계산: ΔP = P_now - P_prev (논문 식 4)
+            p_prev = get_solar_power(hour, prev_angle)
+            p_now = get_solar_power(hour, next_angle)
+            reward = p_now - p_prev # 전력이 높아지는 방향으로 유도
+            
+            # Q-값 업데이트 (식 1)
+            q_table[h_idx, curr_angle_idx] += learning_rate * (
+                reward + gamma * np.max(q_table[h_idx, next_angle_idx]) - q_table[h_idx, curr_angle_idx]
+            )
+            curr_angle_idx = next_angle_idx
 
-        s_next = discretize_angle(next_angle)
+# 4. 결과 도출 (Figure 6 재현)
+theoretical_mpa = [10 + 8 * np.sin(np.pi * (h - 6) / 12) for h in hours]
+tracking_mpa = []
 
-        # Q 업데이트
-        Q[s, a_idx] += alpha * (
-            reward + gamma * np.max(Q[s_next]) - Q[s, a_idx]
-        )
+for i in range(len(hours)):
+    # 각 시간대별 Q값이 가장 높은 각도를 최적 각도로 판단
+    best_angle_idx = np.argmax(q_table[i])
+    tracking_mpa.append(possible_angles[best_angle_idx])
 
-        panel_angle = next_angle
+# 5. 시각화
+plt.figure(figsize=(12, 5))
 
-    # epsilon 감소
-    epsilon *= 0.995
-
-# ---------------------------
-# 6. 테스트 (학습된 정책)
-# ---------------------------
-
-panel_angles = []
-sun_angles = []
-powers = []
-
-panel_angle = 0
-
-for t in range(TIME_STEPS):
-    s = discretize_angle(panel_angle)
-    a_idx = np.argmax(Q[s])
-    action = ACTIONS[a_idx]
-
-    panel_angle += action * ANGLE_STEP
-    panel_angle = np.clip(panel_angle, -90, 90)
-
-    sa = sun_angle(t)
-    p = power(panel_angle, sa)
-
-    panel_angles.append(panel_angle)
-    sun_angles.append(sa)
-    powers.append(p)
-
-# ---------------------------
-# 7. 비교 (고정 패널)
-# ---------------------------
-
-fixed_powers = []
-for t in range(TIME_STEPS):
-    fixed_powers.append(power(0, sun_angle(t)))
-
-# ---------------------------
-# 8. 시각화
-# ---------------------------
-
-plt.figure(figsize=(12,5))
-
-# 각도 비교
-plt.subplot(1,2,1)
-plt.plot(sun_angles, label="Sun angle")
-plt.plot(panel_angles, label="Panel angle (RL)")
-plt.title("Angle Tracking")
+# [왼쪽] Figure 5 컨셉 확인: 시간별 전력 곡선
+plt.subplot(1, 2, 1)
+for h in [8, 10, 12, 14, 16]:
+    powers = [get_solar_power(h, a) for a in possible_angles]
+    plt.plot(possible_angles, powers, label=f'{h}:00')
+plt.title('Figure 5: Power vs Tilt Angle (Environment)')
+plt.xlabel('Tilt Angle (deg)')
+plt.ylabel('Power (W)')
 plt.legend()
+plt.grid(True, alpha=0.3)
 
-# 발전량 비교
-plt.subplot(1,2,2)
-plt.plot(powers, label="RL Tracker")
-plt.plot(fixed_powers, label="Fixed Panel")
-plt.title("Power Output")
+# [오른쪽] Figure 6 재현: 최적 각도 추적 결과
+plt.subplot(1, 2, 2)
+plt.plot(hours, theoretical_mpa, 'r-', label='Theoretical MPA', linewidth=2)
+plt.plot(hours, tracking_mpa, 'b--', label='RL Tracking Angle', marker='s', markersize=4)
+plt.title('Figure 6: Error between Tracking and Theoretical')
+plt.xlabel('Hour of Day (h)')
+plt.ylabel('Tilt Angle (deg)')
+plt.xticks(hours)
 plt.legend()
+plt.grid(True, linestyle='--', alpha=0.6)
 
+plt.tight_layout()
 plt.show()
 
-print("RL total power:", sum(powers))
-print("Fixed total power:", sum(fixed_powers))
+# MAE 출력
+mae = np.mean(np.abs(np.array(tracking_mpa) - np.array(theoretical_mpa)))
+print(f"재현 결과 Mean Absolute Error (MAE): {mae:.4f} degrees")
