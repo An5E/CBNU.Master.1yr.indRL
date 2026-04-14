@@ -57,8 +57,6 @@ for ep in range(episodes):
 
 # 4. 결과 도출 (Figure 6 재현)
 theoretical_mpa = [10 + 8 * np.sin(np.pi * (h - 6) / 12) for h in hours]
-
-print(theoretical_mpa)
 tracking_mpa = []
 
 for i in range(len(hours)):
