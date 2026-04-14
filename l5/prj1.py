@@ -12,11 +12,11 @@ class Environment:
     def __init__(self):
         self.action_space = [0,1,2,3,4]
         self.action_meaning = {
-            0: "Decrease tilt by -- degree",
-            1: "Decrease tilt by - degree",
+            0: "Decrease tilt by -2x degree",
+            1: "Decrease tilt by -1x degree",
             2: "No change",
-            3: "Increase tilt by + degree",
-            4: "Increase tilt by ++ degree"
+            3: "Increase tilt by +1x degree",
+            4: "Increase tilt by +2x degree"
         }
         
         self.goal_state = 0 # ! MPA 가 발생하는 경사각 
@@ -26,7 +26,7 @@ class Environment:
     
     def reset(self):
         self.agent_state = self.start_state
-        return self.agnet_state
+        return self.agent_state
     
     def next_state(self, state, action):
         
@@ -39,14 +39,13 @@ class Environment:
         
         return next_state
         
-    def getSolarPower(hour, tilt_angle):
+    def getSolarPower(self, hour, tilt_angle):
         # 논문 Figure 5의 특성: 정오(12-13시)에 최대 전력, 특정 각도에서 피크 발생
         # 6시~18시까지 최적 각도가 10~18도 사이에서 변하는 포물선 모델
         center_angle = l_mpa[hour-6][1] # 이론적 최적 각도(MPA)
         max_p = l_mpa[hour-6][2] # 시간대별 최대 전력 (W)
         
-        # 각도가 최적에서 멀어질수록 전력 감소 (가우시안 분포 근사)
-        # print(l_mpa[hour-6][3:5])
+ 
         
         # ? {hour} 곡선에서 x={tilt_angle}인 y값 구하기. l_mpa에서 참조
         return max(0, getRewardFromMPA(hour, tilt_angle))
@@ -58,16 +57,16 @@ class Environment:
         # power = max_p  * l_mpa[hour-6][4][np.argmin(np.abs(possible_angles - tilt_angle))] # np.exp(-((tilt_angle - center_angle)**2) / )
         # return max(0, power)
 
-    def reward(self, state, action, next_state):
+    def reward(self, state, action, hour, next_state):
         # ? getSolarPower? 
         # ! 발전량 최대치가 나오는 경사각으로 이동
         # ! MPA 곡선은 비교 데이터일 뿐, 추종할 값이 아님
         return self.getSolarPower(hour, next_state) - self.getSolarPower(hour, state)
     
-    def step(self, action):
+    def step(self, action, hour):
         state = self.agent_state
         next_state = self.next_state(state, action)
-        reward = self.reward(state, action, next_state)
+        reward = self.reward(state, action, hour, next_state)
         done = (reward < 0) # ! 보상(발전량 변화율)이 낮아지면 종료
         
         self.agent_state = next_state
@@ -128,25 +127,21 @@ def getHourlySolarPos():
 
 def getMPAHourly(src: pd.DataFrame, max_power):
     ret = []
+
+    startHour = 6
+    endHour = 18
     src.reset_index(drop=True, inplace=True)
     
     data = {
-        'hour': np.arange(6, 19), # 6시 ~ 18시 낮 시간대
-        'azimuth': src.azimuth[6:19].values,
-        'zenith': src.zenith[6:19].values
+        'hour': np.arange(startHour,  endHour+1), # 6시 ~ 18시 낮 시간대
+        'azimuth': src.azimuth[startHour:endHour+1].values,
+        'zenith': src.zenith[startHour:endHour+1].values
     }
     
     df = pd.DataFrame(data)
-
-    # 2. 설정 값
-    tilt_range = np.linspace(0, 80, 161)  # X축: 패널 기울기 (0~90도)
+    tilt_range = np.linspace(0, 80, 161)  # X축: 패널 기울기 (0~80도, .5도 단위)
     panel_azimuth = 180  # 패널 설치 방향 (정남향)
 
-    # 3. 시각화 설정
-    # plt.figure(figsize=(12, 8))
-    # colors = cm.plasma(np.linspace(0, 1, len(df))) # 시간 흐름에 따른 색상
-
-    # 4. 시간별(Row별) 루프 수행
     for i, row in df.iterrows():
         h = row['hour']
         s_azi = row['azimuth']
@@ -160,7 +155,6 @@ def getMPAHourly(src: pd.DataFrame, max_power):
             t_r, p_azi_r = np.radians(tilt), np.radians(panel_azimuth)
             
             # 입사각(AOI) 코사인 계산
-            # cos(AOI) = sin(alt)*cos(tilt) + cos(alt)*sin(tilt)*cos(s_azi - p_azi)
             cos_theta = (np.sin(s_alt_r) * np.cos(t_r) + 
                         np.cos(s_alt_r) * np.sin(t_r) * np.cos(s_azi_r - p_azi_r))
             
@@ -172,48 +166,23 @@ def getMPAHourly(src: pd.DataFrame, max_power):
         mpa_tilt = tilt_range[max_idx]
         max_p = powers[max_idx]
         
-        ret.append((h, mpa_tilt, max_p, tilt_range, powers))
-        
-        # 그래프 그리기 (선형 차트)
-        # plt.plot(tilt_range, powers, label=f'{int(h):02d}h (MPA:{mpa_tilt:.1f}°)', 
-        #         color=colors[i], linewidth=1.8, alpha=0.8)
-        
-        # MPA 지점에 포인트 표시
-        # plt.scatter(mpa_tilt, max_p, color=colors[i], s=40, edgecolor='black', zorder=5)
+        ret.append((h, mpa_tilt, max_p, tilt_range, powers)) # ! 시간, MPA 경사각, 최대 발전량, 경사각 범위, 경사각별 발전량
 
     return ret
-
-
-
-# 1. Figure 6: 시간 및 각도에 따른 출력 전력 모델링 (근사 함수)
-
-# 2. Q-러닝 파라미터 설정 (논문 330-331p 참조)
-
-# possible_angles = np.linspace(0, 80, 161) # 0.5도 단위로 0~80도 상태 구성
-# actions = [-1.0, -0.5, 0, 0.5, 1.0]      # 각도 변경 단계 (Action list)
-
-# q_table = np.zeros((len(hours), len(possible_angles)))
-
-# 3. 학습 과정: Figure 5의 전력을 보상으로 사용
 
 solpos = getHourlySolarPos()
 l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 3500)
 
 # ! Hour input range: 6 ~ 18
 def getRewardFromMPA(hour: int, tilt_angle: float):
-    print(l_mpa[hour-6])
+    # print(l_mpa[hour-6])
     return l_mpa[hour-6][4][int(tilt_angle/0.5)] if hour >= 6 and hour <= 18 else 0
 
 def test():
-    solpos = getHourlySolarPos()
-    l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 3500)
-    
     # ! {hour} 의 {tilt_angle}에 해당하는
     hr = 6
     tilt_angle = 0.5
-    # print(l_mpa[hr-6][4][int(tilt_angle/0.5)])
     print(getRewardFromMPA(hr, tilt_angle))
-    # print([item for item in l_mpa][-1])
 
 def main():
     solpos = getHourlySolarPos()
@@ -223,55 +192,40 @@ def main():
     env = Environment()
     agent = TrackerAgent()
 
-    episodes = 1 # 2000
+    episodes = 10 # 2000
     for ep in range(episodes):
+        # 초기 각도 설정
+        state = env.reset() # ! 초기 각도 0도 고정 (MPA 곡선에 따라)
+
         for h_idx, hour in enumerate(hours):
-            # 초기 각도 설정
-            curr_angle_idx = 0 # ! 초기 각도 0도 고정 (MPA 곡선에 따라) 
 
             while True:
                 action = agent.getAction(state)
-                next_state, reward, done = env.step(action)
+                next_state, reward, done = env.step(action, hour)
+
+                print(f"hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done}")
                 
                 agent.update(state, action, reward, next_state, done)
                 if done:
                     break
                 
                 state = next_state
-                
 
-            # for step in range(10): # 각 시간대별 최적 각도 탐색 시도
-                # 행동 선택 (e-greedy)
-                # if random.random() < epsilon:
-                #     a_idx = random.randint(0, len(actions)-1)
-                # else:
-                #     a_idx = np.argmax(q_table[h_idx, curr_angle_idx])
-                
-                # 다음 상태(각도) 계산
-                # prev_angle = possible_angles[curr_angle_idx]
-                # next_angle = np.clip(prev_angle + actions[a_idx], 0, 30)
-                # next_angle_idx = np.argmin(np.abs(possible_angles - next_angle))
-                
-                # 보상 계산: ΔP = P_now - P_prev (논문 식 4)
-                # p_prev = getSolarPower(hour, prev_angle)
-                # p_now = getSolarPower(hour, next_angle)
-                # reward = p_now - p_prev # 전력이 높아지는 방향으로 유도
-                
-                # Q-값 업데이트 (식 1)
-                # q_table[h_idx, curr_angle_idx] += alpha * (
-                #     reward + gamma * np.max(q_table[h_idx, next_angle_idx]) - q_table[h_idx, curr_angle_idx]
-                # )
-                # curr_angle_idx = next_angle_idx
-
-    # 4. 결과 도출 (Figure 6 재현)
+    # ! Figure 6 재현
     tracking_mpa = []
+    possible_angles = np.linspace(0, 80, 161)
 
-    # for i in range(len(hours)):
+    for i in range(len(hours)):
         # 각 시간대별 Q값이 가장 높은 각도를 최적 각도로 판단
-        # best_angle_idx = np.argmax(q_table[i])
-        # tracking_mpa.append(possible_angles[best_angle_idx])
+        best_angle_idx = np.argmax(max(agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4]))
+        print(max(agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4]))
 
-    # 5. 시각화
+        print(best_angle_idx)
+
+        tracking_mpa.append(possible_angles[best_angle_idx])
+
+
+    # ! 차트 출력
     plt.figure(figsize=(16, 5))
     plt.subplot(1, 3, 1)
     plt.plot(solpos['azimuth'], marker='s', markersize=3, color='r', label="azimuth angle")
@@ -290,28 +244,13 @@ def main():
     plt.xlabel('Hour of Day (h)')
     plt.title("Fig 5`. MPA Curves for Each Hour")
 
-    # [왼쪽] Figure 5 컨셉 확인: 시간별 전력 곡선
-    # for h in range(6,12):
-    #     powers = [get_solar_power(h, a) for a in possible_angles]
-    #     plt.plot(possible_angles, powers, label=f'{h}:00')
-    # plt.title('Figure 5: Power vs Tilt Angle (Environment)')
-    # plt.xlabel('Tilt Angle (deg)')
-    # plt.ylabel('Power (W)')
-    # plt.legend()
-    # plt.grid(True, alpha=0.3)
-
-    # [오른쪽] Figure 6 재현: 최적 각도 추적 결과
 
     theoretical_mpa = [(h, mpa_tilt) for h, mpa_tilt, _, _, _ in l_mpa]
-
-    # print([mpa[0] for mpa in theoretical_mpa])
-    # print([float(mpa[1]) for mpa in theoretical_mpa])
-    # print(tracking_mpa)
 
     plt.subplot(1, 3, 3)
     plt.plot([float(mpa[1]) for mpa in theoretical_mpa], 'r-', label='Theoretical MPA', marker='s', markersize=3, linewidth=2)
     plt.plot(tracking_mpa, 'b--', label='RL Tracking Angle', marker='s', markersize=4)
-    plt.title('Figure 6`: Q-learned Tracking vs Theoretical MPA')
+    plt.title('Fig 6`: Q-learned Tracking vs Theoretical MPA')
     plt.xlabel('Hour of Day (h)')
     plt.ylabel('Tilt Angle (deg)')
     plt.legend()
@@ -321,8 +260,8 @@ def main():
     plt.show()
 
     # MAE 출력
-    mae = np.mean(np.abs(np.array(tracking_mpa) - np.array([float(mpa[1]) for mpa in theoretical_mpa])))
-    print(f"재현 결과 Mean Absolute Error (MAE): {mae:.4f} degrees")
+    # mae = np.mean(np.abs(np.array(tracking_mpa) - np.array([float(mpa[1]) for mpa in theoretical_mpa])))
+    # print(f"재현 결과 Mean Absolute Error (MAE): {mae:.4f} degrees")
 
 if __name__ == "__main__":
     main()
