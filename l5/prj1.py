@@ -49,19 +49,19 @@ class Environment:
         # print(l_mpa[hour-6][3:5])
         
         # ? {hour} 곡선에서 x={tilt_angle}인 y값 구하기. l_mpa에서 참조
-        l_mpa[hour][tilt_angle]
+        return max(0, getRewardFromMPA(hour, tilt_angle))
         
-        possible_angles = []
+        # possible_angles = []
         
         # print(f"hour:{hour}, tilt_angle:{tilt_angle}, = {np.argmin(np.abs(possible_angles - tilt_angle))}")
         
-        power = max_p  * l_mpa[hour-6][4][np.argmin(np.abs(possible_angles - tilt_angle))] # np.exp(-((tilt_angle - center_angle)**2) / )
-        return max(0, power)
+        # power = max_p  * l_mpa[hour-6][4][np.argmin(np.abs(possible_angles - tilt_angle))] # np.exp(-((tilt_angle - center_angle)**2) / )
+        # return max(0, power)
 
     def reward(self, state, action, next_state):
         # ? getSolarPower? 
         # ! 발전량 최대치가 나오는 경사각으로 이동
-        # ! MPA 곡선은 비교 데이터일 뿐, 추종하는 것이 아님
+        # ! MPA 곡선은 비교 데이터일 뿐, 추종할 값이 아님
         return self.getSolarPower(hour, next_state) - self.getSolarPower(hour, state)
     
     def step(self, action):
@@ -196,11 +196,24 @@ def getMPAHourly(src: pd.DataFrame, max_power):
 
 # 3. 학습 과정: Figure 5의 전력을 보상으로 사용
 
+solpos = getHourlySolarPos()
+l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 3500)
+
+# ! Hour input range: 6 ~ 18
+def getRewardFromMPA(hour: int, tilt_angle: float):
+    print(l_mpa[hour-6])
+    return l_mpa[hour-6][4][int(tilt_angle/0.5)] if hour >= 6 and hour <= 18 else 0
+
 def test():
     solpos = getHourlySolarPos()
     l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 3500)
     
-    print(l_mpa)
+    # ! {hour} 의 {tilt_angle}에 해당하는
+    hr = 6
+    tilt_angle = 0.5
+    # print(l_mpa[hr-6][4][int(tilt_angle/0.5)])
+    print(getRewardFromMPA(hr, tilt_angle))
+    # print([item for item in l_mpa][-1])
 
 def main():
     solpos = getHourlySolarPos()
@@ -210,7 +223,7 @@ def main():
     env = Environment()
     agent = TrackerAgent()
 
-    episodes = 2 # 2000
+    episodes = 1 # 2000
     for ep in range(episodes):
         for h_idx, hour in enumerate(hours):
             # 초기 각도 설정
@@ -312,5 +325,5 @@ def main():
     print(f"재현 결과 Mean Absolute Error (MAE): {mae:.4f} degrees")
 
 if __name__ == "__main__":
-    # main()
-    test()
+    main()
+    # test()
