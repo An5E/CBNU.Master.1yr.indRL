@@ -19,10 +19,9 @@ class Environment:
             4: "Increase tilt by +2x degree"
         }
         
-        self.goal_state = 0 # ! MPA 가 발생하는 경사각 
+        self.goal_state = 0 # ! MPA 경사각 
         self.start_state = 0 # ! 초기 경사각
         self.agent_state = self.start_state
-        
     
     def reset(self):
         self.agent_state = self.start_state
@@ -39,26 +38,11 @@ class Environment:
         
         return next_state
         
-    def getSolarPower(self, hour, tilt_angle):
-        # 논문 Figure 5의 특성: 정오(12-13시)에 최대 전력, 특정 각도에서 피크 발생
-        # 6시~18시까지 최적 각도가 10~18도 사이에서 변하는 포물선 모델
-        center_angle = l_mpa[hour-6][1] # 이론적 최적 각도(MPA)
-        max_p = l_mpa[hour-6][2] # 시간대별 최대 전력 (W)
-        
- 
-        
+    def getSolarPower(self, hour, tilt_angle):        
         # ? {hour} 곡선에서 x={tilt_angle}인 y값 구하기. l_mpa에서 참조
         return max(0, getRewardFromMPA(hour, tilt_angle))
-        
-        # possible_angles = []
-        
-        # print(f"hour:{hour}, tilt_angle:{tilt_angle}, = {np.argmin(np.abs(possible_angles - tilt_angle))}")
-        
-        # power = max_p  * l_mpa[hour-6][4][np.argmin(np.abs(possible_angles - tilt_angle))] # np.exp(-((tilt_angle - center_angle)**2) / )
-        # return max(0, power)
 
     def reward(self, state, action, hour, next_state):
-        # ? getSolarPower? 
         # ! 발전량 최대치가 나오는 경사각으로 이동
         # ! MPA 곡선은 비교 데이터일 뿐, 추종할 값이 아님
         return self.getSolarPower(hour, next_state) - self.getSolarPower(hour, state)
@@ -71,7 +55,6 @@ class Environment:
         
         self.agent_state = next_state
         return next_state, reward, done
-
 class TrackerAgent:
     def __init__(self):
         self.gamma = 0.9
