@@ -59,12 +59,14 @@ for k,item in enumerate(optimizerSet):
     plt.title(f"{item[0]} loss (lr={lr})")
 
     # ! 차트 X,Y Axis label 설정
-    plt.xlabel('iters/1000')
-    plt.ylabel('loss')
+    # plt.xlabel('iters/1000')
+    # plt.ylabel('loss')
 
     t = np.arange(0, 1, .01)[:, np.newaxis]
     y_pred = model(t)
-    plt.plot(losses, color='r')
+
+    print(y_pred)
+    plt.plot(t, y_pred.data-loss.data, color='r')
     # ! subplot 간 가로 간격을 이격
     plt.subplots_adjust(wspace=0.3)
 

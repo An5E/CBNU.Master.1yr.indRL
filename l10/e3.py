@@ -7,7 +7,7 @@ import dezero.layers as L
 from common.gridworld import GridWorld
 
 def one_hot(state):
-    HEIGHT, WIDTH = 3,4
+    HEIGHT, WIDTH = 5,5
     vec = np.zeros(HEIGHT * WIDTH, dtype=np.float32)
     y, x = state
     idx = WIDTH * y + x
@@ -27,9 +27,9 @@ class QNet(Model):
     
 class QLearningAgent:
     def __init__(self):
-        self.gamma =0.9
-        self.lr = 0.01
-        self.epsilon = 0.1
+        self.gamma = 0.9
+        self.lr = 0.18
+        self.epsilon = 0.8
         self.action_size = 4
 
         self.qnet = QNet()                          # 신경망 초기화
@@ -98,6 +98,12 @@ for episode in range(episodes):
 plt.xlabel('episode')
 plt.ylabel('loss')
 plt.plot(range(len(loss_history)),loss_history)
+
+loss_history.sort()
+print(loss_history[0])
+
+# ! hyper parameter 출력
+plt.title(f"lr={agent.lr}, gamma={agent.gamma}, epsilon={agent.epsilon}")
 plt.show()
 
 # 신경망을 이용한 Q러닝으로 얻은 Q함수, 정책
