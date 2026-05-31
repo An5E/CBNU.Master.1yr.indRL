@@ -20,7 +20,7 @@ class PolicyNet(Model): # 정책 신경망
 class ValueNet(Model): # 가치 함수 신경망
     def __init__(self):
         super().__init__()
-        self.l1 = L.Linear(64)
+        self.l1 = L.Linear(256)
         self.l2 = L.Linear(1)
 
     def forward(self,x):
@@ -37,14 +37,14 @@ class Agent:
         # self.lr_v = 0.0005
         
         # ! modified -1 
-        self.gamma = 0.94
-        self.lr_pi = 0.00012
-        self.lr_v = 0.02
+        self.gamma = 0.99
+        self.lr_pi = 0.00008
+        self.lr_v = 0.0001
         
         
-        self.action_size = 2
+        self.action_size = 3
 
-        self.pi = PolicyNet()
+        self.pi = PolicyNet(action_size=self.action_size)
         self.v = ValueNet()
         self.optimizer_pi = optimizers.Adam(self.lr_pi).setup(self.pi)
         self.optimizer_v = optimizers.Adam(self.lr_v).setup(self.v)
@@ -62,7 +62,8 @@ class Agent:
         next_state = next_state[np.newaxis, :]
 
         # 가치 함수의 손실 계산
-        target = reward + self.gamma * self.v(next_state) * (1- done) # TD 목표
+        print(f"{state}, {abs(state[:,1] * 10)}")
+        target = reward + self.gamma * (self.v(next_state) + abs(state[:,1] * 100)) * (1- done) # TD 목표
         target.unchain()
         v = self.v(state) # 현재 상태의 가치 함수
         loss_v = F.mean_squared_error(v, target) # 두 값의 평균제곱오차
@@ -72,7 +73,7 @@ class Agent:
         delta.unchain()
         loss_pi = -F.log(action_prob) * delta
         
-        print(f"{state} {action_prob} {v} {loss_v.data}")
+        # print(f"{state} {action_prob} {v} {loss_v.data}")
 
         self.v.cleargrads()
         self.pi.cleargrads()
@@ -85,8 +86,8 @@ class Agent:
 
 
 episodes = 300
-# env = gym.make('MountainCar-v0', render_mode='rgb_array')
-env = gym.make('MountainCar-v0', render_mode='human')
+env = gym.make('MountainCar-v0', render_mode='rgb_array')
+# env = gym.make('MountainCar-v0', render_mode='human')
 agent = Agent()
 reward_history = []
 
@@ -108,9 +109,10 @@ for episode in range(episodes):
         total_reward += reward
 
     reward_history.append(total_reward)
-    # if episode % 100 == 0:
-        # print("episode: {}, total reward: {:.1f}".format(episode, total_reward))
-    print("episode: {}, total reward: {:.1f}".format(episode, total_reward))
+    if episode % 100 == 0:
+        # env.render()
+        print("episode: {}, total reward: {:.1f}".format(episode, total_reward))
+    # print("episode: {}, total reward: {:.1f}".format(episode, total_reward))
 
 # 그래프
 from common.utils import plot_total_reward
@@ -139,5 +141,3 @@ while not done:
     env2.render()
 
 print("total reward: {}".format(total_reward))
-
-
