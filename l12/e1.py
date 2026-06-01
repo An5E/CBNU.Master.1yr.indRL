@@ -48,8 +48,8 @@ class QNet(Model): # 신경망 클래스
 class DQNAgent:  # 에이전트 클래스
     def __init__(self):
         self.gamma = 0.99
-        self.lr = 0.0008
-        self.epsilon = 0.29
+        self.lr = 0.0002
+        self.epsilon = 0.35
         self.buffer_size = 10000       # 경험 재생 버퍼 크기
         self.batch_size = 32           # 미니 배치 크기
         self.action_size = 3
@@ -101,12 +101,14 @@ class DQNAgent:  # 에이전트 클래스
 
 episodes = 200      # 에피소드 수
 sync_interval = 20  # 신경망 동기화 주기 (20번째 에피소드마다 동기화)
-# env = gym.make('MountainCar-v0', render_mode='rgb_array')
-env = gym.make('MountainCar-v0', render_mode='human')
-env.metadata['render_fps'] = 600
+env = gym.make('MountainCar-v0', render_mode='rgb_array')
+# env = gym.make('MountainCar-v0', render_mode='human')
+# env.metadata['render_fps'] = 600
 
 agent = DQNAgent()
 reward_history = [] # 에피소드별 보상 기록
+
+hit_count = 0
 
 for episode in range(episodes):
     state = env.reset()[0]
@@ -122,12 +124,14 @@ for episode in range(episodes):
         state = next_state
         total_reward += reward
 
+    if terminated:
+        hit_count += 1
     if episode % sync_interval == 0:
         agent.sync_qnet()
 
     reward_history.append(total_reward)
     if episode % 10 == 0:
-        print("episode: {}, total reward: {}".format(episode, total_reward))
+        print("episode: {}, total reward: {}, hit: {}".format(episode, total_reward, hit_count))
 
 # 카트 폴에서 에피소드별 보상 총합 추이
 plt.xlabel('Episode')
