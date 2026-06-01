@@ -10,6 +10,9 @@ import dezero.functions as F
 import dezero.layers as L
 
 
+qnetSize_l1 = 64
+qnetSize_l2 = 64
+
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
         self.buffer = deque(maxlen=buffer_size)
@@ -35,8 +38,8 @@ class ReplayBuffer:
 class QNet(Model): # 신경망 클래스
     def __init__(self, action_size):
         super().__init__()
-        self.l1 = L.Linear(128)
-        self.l2 = L.Linear(128)
+        self.l1 = L.Linear(qnetSize_l1)
+        self.l2 = L.Linear(qnetSize_l2)
         self.l3 = L.Linear(action_size)
 
     def forward(self,x):
@@ -48,8 +51,8 @@ class QNet(Model): # 신경망 클래스
 class DQNAgent:  # 에이전트 클래스
     def __init__(self):
         self.gamma = 0.99
-        self.lr = 0.0002
-        self.epsilon = 0.35
+        self.lr = 0.0003
+        self.epsilon = 0.15
         self.buffer_size = 10000       # 경험 재생 버퍼 크기
         self.batch_size = 32           # 미니 배치 크기
         self.action_size = 3
@@ -99,8 +102,8 @@ class DQNAgent:  # 에이전트 클래스
 
 
 
-episodes = 200      # 에피소드 수
-sync_interval = 20  # 신경망 동기화 주기 (20번째 에피소드마다 동기화)
+episodes = 300      # 에피소드 수
+sync_interval = 20  # 신경망 동기화 주기 (#번째 에피소드마다 동기화)
 env = gym.make('MountainCar-v0', render_mode='rgb_array')
 # env = gym.make('MountainCar-v0', render_mode='human')
 # env.metadata['render_fps'] = 600
@@ -109,6 +112,8 @@ agent = DQNAgent()
 reward_history = [] # 에피소드별 보상 기록
 
 hit_count = 0
+
+print(f"# qnet:{qnetSize_l1}*{qnetSize_l2}*3")
 
 for episode in range(episodes):
     state = env.reset()[0]
@@ -145,7 +150,7 @@ plt.show()
 
 # 학습 끝난 에이전트에 탐욕 행동 선택하도록 하여 플레이
 env2 = gym.make('MountainCar-v0', render_mode='human')
-# env2.metadata['render_fps'] = 30
+env2.metadata['render_fps'] = 120
 
 agent.epsilon = 0 # 탐욕 정책 (무작위 행동할 확률 입실론을 0으로 설정)
 state = env2.reset()[0]
