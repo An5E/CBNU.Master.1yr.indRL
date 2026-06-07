@@ -9,9 +9,11 @@ from dezero import optimizers
 import dezero.functions as F
 import dezero.layers as L
 
-
 qnetSize_l1 = 128
 qnetSize_l2 = 16
+episodes = 500      # 에피소드 수
+early_stop_limit = int(episodes/3)
+sync_interval = 20  # 신경망 동기화 주기 (#번째 에피소드마다 동기화)
 
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
@@ -49,14 +51,14 @@ class QNet(Model): # 신경망 클래스
         return x
     
 class DQNAgent:  # 에이전트 클래스
-    def __init__(self):
-        self.gamma = 0.99
-        self.lr = 0.004
-        self.epsilon = 0.013
+    def __init__(self, gamma, lr, epsilon):
+        self.gamma = gamma
+        self.lr = lr
+        self.epsilon = epsilon
         self.buffer_size = 10000       # 경험 재생 버퍼 크기
         self.batch_size = 32           # 미니 배치 크기
         self.action_size = 3
-        
+
         self.replay_buffer = ReplayBuffer(self.buffer_size, self.batch_size)
         self.qnet = QNet(self.action_size)              # 원본 신경망
         self.qnet_target = QNet(self.action_size)       # 목표 신경망
@@ -100,69 +102,86 @@ class DQNAgent:  # 에이전트 클래스
         self.qnet_target = copy.deepcopy(self.qnet) 
 
 
+def unitRun(gamma, lr, epsilon):
+    env = gym.make('MountainCar-v0', render_mode='rgb_array')
+    # env = gym.make('MountainCar-v0', render_mode='human')
+    # env.metadata['render_fps'] = 600
+
+    agent = DQNAgent(gamma, lr, epsilon)
+    reward_history = [] # 에피소드별 보상 기록
+
+    hit_count = 0
+
+    print(f"# qnet:{qnetSize_l1}*{qnetSize_l2}*3, gamma:{agent.gamma}, lr:{agent.lr}, eps:{agent.epsilon}")
+
+    for episode in range(episodes):
+        state = env.reset()[0]
+        done = False
+        total_reward = 0
+
+        while not done:
+            action = agent.get_action(state)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            done = terminated | truncated
+
+            agent.update(state, action, reward, next_state, done)
+            state = next_state
+            total_reward += reward
+
+        if terminated:
+            hit_count += 1
+        if episode % sync_interval == 0:
+            agent.sync_qnet()
+
+        reward_history.append(total_reward)
+        if episode % 10 == 0:
+            print("qnet:{}*{}, episode: {}, total reward: {}, hit: {}".format(qnetSize_l1, qnetSize_l2, episode, total_reward, hit_count))
+        if episode > 0 and (episode % early_stop_limit == 0):
+            # early stopping
+            if hit_count <= 4:
+                print("# Early stopped ---")
+                return 
+
+    if hit_count > 35:
+        with open("e1_auto.result.txt", "a+") as f:
+            f.write(f"qnet:{qnetSize_l1}*{qnetSize_l2}*3, episodes:{episodes}, gamma:{agent.gamma}, lr:{agent.lr}, eps:{agent.epsilon}, max. hit: {hit_count}, min. hit occur episode: {reward_history.index(min(reward_history))}\n")
+
+# # 카트 폴에서 에피소드별 보상 총합 추이
+# plt.xlabel('Episode')
+# plt.ylabel('Total reward')
+# plt.plot(range(len(reward_history)), reward_history)
+# plt.title(f"qnet:{qnetSize_l1}*{qnetSize_l2}, gamma:{agent.gamma}, lr:{agent.lr}, eps:{agent.epsilon}")
+# plt.show()
 
 
-episodes = 500      # 에피소드 수
-sync_interval = 20  # 신경망 동기화 주기 (#번째 에피소드마다 동기화)
-env = gym.make('MountainCar-v0', render_mode='rgb_array')
-# env = gym.make('MountainCar-v0', render_mode='human')
-# env.metadata['render_fps'] = 600
+for i in range(999):
+    gamma = round(random.uniform(0.98, 0.999), 3) 
+    lr = round(random.uniform(0.002, 0.003), 3)
+    epsilon = round(random.uniform(0.018, 0.09), 3)
 
-agent = DQNAgent()
-reward_history = [] # 에피소드별 보상 기록
+    unitRun(gamma, lr, epsilon)
+    
+    
 
-hit_count = 0
-
-print(f"# qnet:{qnetSize_l1}*{qnetSize_l2}*3, gamma:{agent.gamma}, lr:{agent.lr}, eps:{agent.epsilon}")
-
-for episode in range(episodes):
-    state = env.reset()[0]
-    done = False
-    total_reward = 0
-
-    while not done:
-        action = agent.get_action(state)
-        next_state, reward, terminated, truncated, info = env.step(action)
-        done = terminated | truncated
-
-        agent.update(state, action, reward, next_state, done)
-        state = next_state
-        total_reward += reward
-
-    if terminated:
-        hit_count += 1
-    if episode % sync_interval == 0:
-        agent.sync_qnet()
-
-    reward_history.append(total_reward)
-    if episode % 10 == 0:
-        print("qnet:{}*{}, episode: {}, total reward: {}, hit: {}".format(qnetSize_l1, qnetSize_l2, episode, total_reward, hit_count))
-
-# 카트 폴에서 에피소드별 보상 총합 추이
-plt.xlabel('Episode')
-plt.ylabel('Total reward')
-plt.plot(range(len(reward_history)), reward_history)
-plt.title(f"qnet:{qnetSize_l1}*{qnetSize_l2}, gamma:{agent.gamma}, lr:{agent.lr}, eps:{agent.epsilon}")
-plt.show()
 
 
 
 
 # 학습 끝난 에이전트에 탐욕 행동 선택하도록 하여 플레이
-env2 = gym.make('MountainCar-v0', render_mode='human')
-env2.metadata['render_fps'] = 120
+# env2 = gym.make('MountainCar-v0', render_mode='human')
+# env2.metadata['render_fps'] = 120
 
-agent.epsilon = 0 # 탐욕 정책 (무작위 행동할 확률 입실론을 0으로 설정)
-state = env2.reset()[0]
-done = False
-total_reward = 0
+# agent.epsilon = 0 # 탐욕 정책 (무작위 행동할 확률 입실론을 0으로 설정)
+# state = env2.reset()[0]
+# done = False
+# total_reward = 0
 
-while not done:
-    action = agent.get_action(state)
-    next_state, reward, terminated, truncated, info = env2.step(action)
-    done = terminated | truncated
-    state = next_state
-    total_reward += reward
-    env2.render()
+# while not done:
+#     action = agent.get_action(state)
+#     next_state, reward, terminated, truncated, info = env2.step(action)
+#     done = terminated | truncated
+#     state = next_state
+#     total_reward += reward
+#     env2.render()
 
-print('Total Reward:', total_reward)
+# print('Total Reward:', total_reward)
