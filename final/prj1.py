@@ -8,6 +8,12 @@ from pvlib import irradiance, solarposition
 
 from common.utils import greedy_probs
 
+IS_DEBUG = False
+
+def debug_print(s:str):
+    if IS_DEBUG:
+        print(s)
+
 class Environment:
     def __init__(self):
         self.action_space = [0,1,2,3,4]
@@ -28,7 +34,7 @@ class Environment:
         return self.agent_state
     
     def next_state(self, state, action):
-        angle_factor = 2
+        angle_factor = 3
         action_move_map = [x * angle_factor for x in [-2, -1, 0, 1, 2]] 
         
         move = action_move_map[action]
@@ -45,9 +51,7 @@ class Environment:
 
     def reward(self, state, action, hour, next_state):
         # ! 발전량 최대치가 나오는 경사각으로 이동
-        # ! MPA 곡선은 비교 데이터일 뿐, 추종할 값이 아님
-        print(f"reward:: state: {state}->{next_state}, action: {action}, hour: {hour}")
-        
+        # ! MPA 곡선은 비교 데이터일 뿐, 추종할 값이 아님        
         return self.getSolarPower(hour, next_state) - self.getSolarPower(hour, state)
     
     def step(self, action, hour):
@@ -56,6 +60,9 @@ class Environment:
         reward = self.reward(state, action, hour, next_state)
         done = (reward < 0) # ! 보상(발전량 변화율)이 낮아지면 종료
         
+        if done:
+            debug_print(f"reward:: state: {state}->{next_state}, action: {action}, hour: {hour}")
+
         self.agent_state = next_state
         return next_state, reward, done
     
@@ -65,8 +72,8 @@ class Environment:
 class TrackerAgent:
     def __init__(self):
         self.gamma = 0.9
-        self.alpha = 0.00001
-        self.epsilon = 0.8 # ! e-greedy 계수 ( 0.8 )
+        self.alpha = 0.01
+        self.epsilon = 0.15 # ! e-greedy 계수 ( 0.8 )
         
         self.action_size = 5
         random_actions = {0:.20, 1:.20, 2:.20, 3:.20, 4:.20}
@@ -171,22 +178,23 @@ def getRewardFromMPA(hour: int, tilt_angle: float):
     # print(l_mpa[hour-6])
     return l_mpa[hour-6][4][int(tilt_angle/0.5)] if hour >= 6 and hour <= 18 else 0
 
-def test():
-    # ! {hour} 의 {tilt_angle}에 해당하는
-    hr = 6
-    tilt_angle = 0.5
-    print(getRewardFromMPA(hr, tilt_angle))
+# def test():
+#     # ! {hour} 의 {tilt_angle}에 해당하는
+#     hr = 6
+#     tilt_angle = 0.5
+#     print(getRewardFromMPA(hr, tilt_angle))
 
 def main():
+    panelCapacity = 3500 # Watt
     solpos = getHourlySolarPos()
-    l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 3500)
+    l_mpa = getMPAHourly(solpos[['azimuth','zenith']], panelCapacity)
     hours = np.arange(6, 19)          # 6:00 ~ 18:00
     
     env = Environment()
     
     agent = TrackerAgent()
 
-    episodes = 10 # 2000
+    episodes = 1000 # 2000
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 각도 0도 고정 (MPA 곡선에 따라)
@@ -200,7 +208,7 @@ def main():
                     agent.update(state, action, reward, next_state, done)
                     if done: 
                         if hour == 6:
-                            print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
+                            debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
                     
                         break
                     
@@ -215,14 +223,17 @@ def main():
     for i in range(len(hours)):
         # 각 시간대별 Q값이 가장 높은 각도를 최적 각도로 판단
         best_angle_idx = np.argmax([agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4]])
-        print(f"{i} , {best_angle_idx}: {max(agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4])}")
+        debug_print(f"{i} , {best_angle_idx}: {max(agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4])}")
 
         state += possible_angles[best_angle_idx]
         # tracking_mpa.append(state)
+
+        print(f"{i}:{possible_angles[best_angle_idx]}")
+
         tracking_mpa.append(possible_angles[best_angle_idx])
 
-    print("## tracking_mpa")
-    print(tracking_mpa)
+    debug_print("## tracking_mpa")
+    debug_print(tracking_mpa)
 
     # ! 차트 출력
     plt.figure(figsize=(16, 5))
