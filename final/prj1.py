@@ -25,8 +25,8 @@ class Environment:
             4: "Increase tilt by +2x degree"
         }
         
-        self.goal_state = 0 # ! MPA 경사각 
-        self.start_state = 0 # ! 초기 경사각
+        self.goal_state = (12, 0) # ! MPA 경사각 , (time, tilt_angle)
+        self.start_state = (0, 0) # ! 초기 경사각
         self.agent_state = self.start_state
     
     def reset(self):
@@ -38,10 +38,11 @@ class Environment:
         action_move_map = [x * angle_factor for x in [-2, -1, 0, 1, 2]] 
         
         move = action_move_map[action]
-        next_state = state + move
         
-        if next_state < 0 or next_state > 80:
-            next_state = state        
+        next_state = (state[0], state[1] + move)
+        
+        if next_state[1] < 0 or next_state[1] > 80:
+            next_state = (state[0], state[1])
         
         return next_state
         
@@ -52,7 +53,7 @@ class Environment:
     def reward(self, state, action, hour, next_state):
         # ! 발전량 최대치가 나오는 경사각으로 이동
         # ! MPA 곡선은 비교 데이터일 뿐, 추종할 값이 아님        
-        return self.getSolarPower(hour, next_state) - self.getSolarPower(hour, state)
+        return self.getSolarPower(hour, next_state[1]) - self.getSolarPower(hour, state[1])
     
     def step(self, action, hour):
         state = self.agent_state
@@ -82,7 +83,7 @@ class TrackerAgent:
         self.tilt_degree = 0
         
     def getAction(self, state):
-        action_probs = self.b[state]
+        action_probs = self.b[state[1]]
         actions = list(action_probs.keys())
         probs = list(action_probs.values())
         return np.random.choice(actions, p=probs)
@@ -91,13 +92,13 @@ class TrackerAgent:
         if done:
             next_q_max = 0
         else:
-            next_qs = [self.Q[next_state, a] for a in range(self.action_size)]
+            next_qs = [self.Q[next_state[1], a] for a in range(self.action_size)]
             next_q_max = max(next_qs)
             
         target = reward + self.gamma * next_q_max
-        self.Q[state, action] += (target - self.Q[state, action]) * self.alpha
+        self.Q[state[1], action] += (target - self.Q[state[1], action]) * self.alpha
 
-        self.b[state] = greedy_probs(self.Q, state, self.epsilon)
+        self.b[state[1]] = greedy_probs(self.Q, state[1], self.epsilon)
 
 
 
@@ -171,12 +172,12 @@ def getMPAHourly(src: pd.DataFrame, max_power):
     return ret
 
 solpos = getHourlySolarPos()
-l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 3500)
+l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 220)
 
 # ! Hour input range: 6 ~ 18
 def getRewardFromMPA(hour: int, tilt_angle: float):
-    # print(l_mpa[hour-6])
-    return l_mpa[hour-6][4][int(tilt_angle/0.5)] if hour >= 6 and hour <= 18 else 0
+    print(f"  {hour}, {tilt_angle} => {int(tilt_angle)}")
+    return l_mpa[hour-6][4][int(tilt_angle)] if hour >= 6 and hour <= 18 else 0
 
 # def test():
 #     # ! {hour} 의 {tilt_angle}에 해당하는
@@ -185,7 +186,7 @@ def getRewardFromMPA(hour: int, tilt_angle: float):
 #     print(getRewardFromMPA(hr, tilt_angle))
 
 def main():
-    panelCapacity = 3500 # Watt
+    panelCapacity = 220 # Watt
     solpos = getHourlySolarPos()
     l_mpa = getMPAHourly(solpos[['azimuth','zenith']], panelCapacity)
     hours = np.arange(6, 19)          # 6:00 ~ 18:00
@@ -194,31 +195,36 @@ def main():
     
     agent = TrackerAgent()
 
-    episodes = 1000 # 2000
+    episodes = 10 # 2000
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 각도 0도 고정 (MPA 곡선에 따라)
 
         for h_idx, hour in enumerate(hours):
             while True:
-                # for i in range(4):  # 1시간/4
-                    action = agent.getAction(state)
-                    next_state, reward, done = env.step(action, hour)
+                action = agent.getAction(state)
+                next_state, reward, done = env.step(action, hour)
 
-                    agent.update(state, action, reward, next_state, done)
-                    if done: 
-                        if hour == 6:
-                            debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
-                    
-                        break
-                    
-                    state = next_state
+                agent.update(state, action, reward, next_state, done)
+                
+                print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
+                
+                if done: 
+                    if hour == 6:
+                        debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
+                
+                    break
+                
+                state = next_state
 
     # ! Figure 6 재현
     tracking_mpa = []
     possible_angles = np.linspace(0, 80, 41)
 
     state = 0
+
+    # print(agent.Q.keys())
+    # print(np.array(list(agent.Q.values())).reshape(-1, 5))
 
     for i in range(len(hours)):
         # 각 시간대별 Q값이 가장 높은 각도를 최적 각도로 판단
@@ -256,10 +262,14 @@ def main():
 
 
     theoretical_mpa = [(h, mpa_tilt) for h, mpa_tilt, _, _, _ in l_mpa]
+    xaxis = [mpa[0] for mpa in theoretical_mpa]
 
     plt.subplot(1, 3, 3)
-    plt.plot([float(mpa[1]) for mpa in theoretical_mpa], 'r-', label='Theoretical MPA', marker='s', markersize=3, linewidth=2)
-    plt.plot(tracking_mpa, 'b--', label='RL Tracking Angle', marker='s', markersize=4)
+    
+    
+    plt.plot(xaxis,[float(mpa[1]) for mpa in theoretical_mpa], 'r-', label='Theoretical MPA', marker='s', markersize=3, linewidth=2)
+    plt.plot(xaxis,tracking_mpa, 'b--', label='RL Tracking Angle', marker='s', markersize=4)
+    
     plt.title('Fig 6`: Q-learned Tracking vs Theoretical MPA')
     plt.xlabel('Hour of Day (h)')
     plt.ylabel('Tilt Angle (deg)')
