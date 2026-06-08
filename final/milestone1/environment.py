@@ -1,4 +1,5 @@
 from fn import getRewardFromMPA, debug_print
+from glb import startHr, endHr
 
 class Environment:
     def __init__(self):
@@ -14,7 +15,7 @@ class Environment:
         # self.goal_state = (12, 0) # ! MPA 경사각 , (time, tilt_angle)
         # self.start_state = (0, self.init_tilt) # ! 초기 경사각
         
-        self.start_state = 10 # ! 초기 tilt angle
+        self.start_state = 0 # ! 초기 tilt angle
         self.agent_state = self.start_state
     
     def reset(self):
@@ -38,7 +39,7 @@ class Environment:
         
     def getSolarPower(self, hour, tilt_angle):        
         # ? {hour} 곡선에서 x={tilt_angle}인 y값 구하기. l_mpa에서 참조
-        return max(0, getRewardFromMPA(hour, tilt_angle, startHour=6, endHour=13))
+        return max(0, getRewardFromMPA(hour, tilt_angle, startHour=startHr, endHour=endHr))
 
     # ! %7, %15: reward = p_now-p
     def reward(self, state, action, hour, next_state):

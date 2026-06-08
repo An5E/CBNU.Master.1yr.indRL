@@ -5,11 +5,11 @@ from environment import Environment
 from agent import TrackerAgent
 
 from fn import getHourlySolarPos, getMPAHourly, debug_print
+from glb import startHr, endHr 
+
 
 def main():
     panelCapacity = 220 # Watt
-    startHr = 6
-    endHr = 12
     
     solpos = getHourlySolarPos() # 0 ~ 23h : (azimuth, zenith)
     l_mpa = getMPAHourly(solpos[['azimuth','zenith']], startHr, endHr, panelCapacity)
@@ -19,13 +19,13 @@ def main():
     env = Environment()
     agent = TrackerAgent()
 
-    episodes = 200 # 2000
+    episodes = 50 # 2000
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 State
 
         for h_idx, hour in enumerate(hours):
-            while True:
+            # while True:
                 action = agent.getAction(state)
                 
                 next_state, reward, done = env.step(action, hour)
@@ -34,11 +34,11 @@ def main():
                 
                 print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 
-                if done: 
+                # if done: 
                 #     if hour == 6:
                 #         debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 
-                    break
+                #   break
                 
                 state = next_state
 
@@ -53,7 +53,7 @@ def main():
 
     init_state = 0
     
-    print([x * 2 for x in [-2, -1, 0, 1, 2]])
+    # print([x * 2 for x in [-2, -1, 0, 1, 2]])
     
     for i in range(len(hours)+1):
         best_action_idx = np.argmax([agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4]])
@@ -62,7 +62,7 @@ def main():
         st += possible_angles[best_action_idx]
         # tracking_mpa.append(st)
 
-        print(f"{i+6}h:{best_action_idx},{agent.Q[i,best_action_idx]}")
+        # print(f"{i+6}h:{best_action_idx},{agent.Q[i,best_action_idx]}")
 
         tracking_mpa.append(init_state + [x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx] )
 
@@ -91,8 +91,6 @@ def main():
 
     theoretical_mpa = [(h, mpa_tilt) for h, mpa_tilt, _, _, _ in l_mpa]
     xaxis = [mpa[0] for mpa in theoretical_mpa]
-
-    print(xaxis)
 
     plt.subplot(1, 3, 3)
     

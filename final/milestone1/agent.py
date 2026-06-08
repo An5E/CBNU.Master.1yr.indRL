@@ -22,15 +22,15 @@ def greedy_probs(Q, state, epsilon=0, action_size=4):
 
 class TrackerAgent:
     def __init__(self):
-        self.gamma = 0.99
+        self.gamma = 0.9
         self.alpha = 0.1
-        self.epsilon = 0.1 # ! e-greedy 계수 ( 0.8 )
+        self.epsilon = 0.0 # ! e-greedy 계수 ( 0.8 )
         
         self.action_size = 5
         random_actions = {0:.20, 1:.20, 2:.20, 3:.20, 4:.20}
         self.b = defaultdict(lambda: random_actions)
         self.Q = defaultdict(lambda: 0)
-        self.tilt_degree = 10
+        self.tilt_degree = 0
         
     # ! %(3,5), %(11,12): chosen_action
     def getAction(self, state):

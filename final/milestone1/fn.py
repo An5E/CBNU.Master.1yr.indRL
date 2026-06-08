@@ -4,6 +4,8 @@ from pvlib import solarposition
 import pandas as pd
 import numpy as np
 
+from glb import startHr, endHr
+
 IS_DEBUG = False
 
 def debug_print(s:str):
@@ -76,9 +78,10 @@ def getMPAHourly(src: pd.DataFrame, startHour=6, endHour=18, max_power=220):
     return ret
 
 solpos = getHourlySolarPos()
-l_mpa = getMPAHourly(solpos[['azimuth','zenith']], 6,12, 220)
+l_mpa = getMPAHourly(solpos[['azimuth','zenith']], startHr, endHr, 220)
 
 # ! Hour input range: 6 ~ 18
-def getRewardFromMPA(hour: int, tilt_angle: float, startHour=6, endHour=19):
+def getRewardFromMPA(hour: int, tilt_angle: float, startHour=6, endHour=18):
     # print(f"  {hour}, {tilt_angle} => {int(tilt_angle)}")
+    # print(l_mpa)
     return l_mpa[hour-6][4][int(tilt_angle)] if hour >= startHour and hour <= (endHour-1) else 0
