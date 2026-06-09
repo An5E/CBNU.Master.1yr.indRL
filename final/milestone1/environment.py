@@ -11,6 +11,9 @@ class Environment:
             3: "Increase tilt by +1x degree",
             4: "Increase tilt by +2x degree"
         }
+        
+        self.angle_factor = 2
+        self.action_move_map = [x * self.angle_factor for x in [-2, -1, 0, 1, 2]] 
                 
         # self.goal_state = (12, 0) # ! MPA 경사각 , (time, tilt_angle)
         # self.start_state = (0, self.init_tilt) # ! 초기 경사각
@@ -24,15 +27,12 @@ class Environment:
     
     # ! %6~7, %13~14: update state
     def next_state(self, state, action):
-        angle_factor = 2
-        action_move_map = [x * angle_factor for x in [-2, -1, 0, 1, 2]] 
-        
-        move = action_move_map[action]
+        move = self.action_move_map[action]
         
         # next_state = (state[0], state[1] + move)
         next_state = state + move
         
-        if next_state < 0 or next_state > 20:
+        if next_state < 0 or next_state > 30:
             next_state = state
         
         return next_state
@@ -42,10 +42,12 @@ class Environment:
         return max(0, getRewardFromMPA(hour, tilt_angle, startHour=startHr, endHour=endHr))
 
     # ! %7, %15: reward = p_now-p
-    def reward(self, state, action, hour, next_state):
+    def reward(self, state, hour, next_state):
         # ! 발전량 최대치가 나오는 경사각으로 이동
         # ! MPA 곡선은 비교 예시 데이터일 뿐, 추종할 값이 아님        
         # return self.getSolarPower(hour, next_state[1]) - self.getSolarPower(hour, state[1])
+        
+        # print(f"env=> hour:{hour}, next_state: {next_state}, state: {state}, p_now: {self.getSolarPower(hour, next_state)}, p: {self.getSolarPower(hour, state)}, res:{self.getSolarPower(hour, next_state) - self.getSolarPower(hour, state)}")
         
         # ! delta pwr
         return self.getSolarPower(hour, next_state) - self.getSolarPower(hour, state)
@@ -53,11 +55,17 @@ class Environment:
     def step(self, action, hour):
         state = self.agent_state
         next_state = self.next_state(state, action)
-        reward = self.reward(state, action, hour, next_state)
-        done = (reward < 0) # ! 보상(발전량 변화율)이 낮아지면 종료
+        reward = self.reward(state, hour, next_state)
+        
+        # ? ---
+        move = self.action_move_map[action]
+        state_ = state + move
+        # ?~ ---
+        
+        done = (state_ < 0 or state_ > 30)  # ! 보상(발전량 변화율)이 변화하면 종료
         
         if done:
-            debug_print(f"reward:: state: {state}->{next_state}, action: {action}, hour: {hour}")
+            print(f"reward:: state: {state}->{next_state}, action: {action}, hour: {hour}")
 
         self.agent_state = next_state
         return next_state, reward, done

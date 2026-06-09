@@ -6,6 +6,7 @@ from agent import TrackerAgent
 
 from fn import getHourlySolarPos, getMPAHourly, debug_print
 from glb import startHr, endHr 
+import pandas as pd
 
 
 def main():
@@ -19,37 +20,39 @@ def main():
     env = Environment()
     agent = TrackerAgent()
 
-    episodes = 50 # 2000
+    episodes = 5 # 2000
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 State
 
+        # ! 시간 값은 상태에 포함되지 않음
         for h_idx, hour in enumerate(hours):
-            # while True:
+            while True:
+            # for i in range(10):
                 action = agent.getAction(state)
                 
                 next_state, reward, done = env.step(action, hour)
 
                 agent.update(state, action, reward, next_state, done)
                 
-                print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 
-                # if done: 
+                if done: 
                 #     if hour == 6:
+                    print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 #         debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 
-                #   break
+                    break
                 
                 state = next_state
 
     # ! Figure 6 재현
     tracking_mpa = []
-    possible_angles = np.linspace(0, 80, 81)
+    possible_angles = np.linspace(0, 30, 31)
 
     st = 0
 
-    # print(agent.Q.keys())
-    # print(np.array(list(agent.Q.values())).reshape(-1, 5))
+    print(agent.Q.keys())
+    print(np.array(list(agent.Q.values())))
 
     init_state = 0
     
@@ -62,16 +65,18 @@ def main():
         st += possible_angles[best_action_idx]
         # tracking_mpa.append(st)
 
-        # print(f"{i+6}h:{best_action_idx},{agent.Q[i,best_action_idx]}")
+        print(f"{i+6}h:{best_action_idx},{agent.Q[i,best_action_idx]}")
 
-        tracking_mpa.append(init_state + [x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx] )
+        init_state = init_state + [x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx]
+
+        tracking_mpa.append(init_state)
 
     debug_print("## tracking_mpa")
     debug_print(tracking_mpa)
 
     # ! 차트 출력
-    plt.figure(figsize=(16, 5))
-    plt.subplot(1, 3, 1)
+    plt.figure(figsize=(14, 4))
+    plt.subplot(131)
     plt.plot(solpos['azimuth'], marker='s', markersize=3, color='r', label="azimuth angle")
     plt.plot(solpos['zenith'], marker='s', markersize=3, color='b', label="zenith angle")
     plt.legend()
@@ -79,7 +84,7 @@ def main():
     plt.xlabel('Hour of Day (h)')
     plt.title('Fig 4`. 2012-08-02 Solar position in Albuquerque')
 
-    plt.subplot(1, 3, 2)
+    plt.subplot(132)
     for h, mpa_tilt, max_p, tilt_range, powers in l_mpa:
         plt.plot(tilt_range, powers, label=f'{int(h):02d}:00 (MPA:{mpa_tilt:.1f}°)')
         plt.scatter(mpa_tilt, max_p, color='black', s=40, edgecolor='black', zorder=5)
@@ -87,12 +92,11 @@ def main():
     plt.ylabel('Power (W)')
     plt.xlabel('Hour of Day (h)')
     plt.title("Fig 5`. MPA Curves for Each Hour")
-
-
+    
     theoretical_mpa = [(h, mpa_tilt) for h, mpa_tilt, _, _, _ in l_mpa]
     xaxis = [mpa[0] for mpa in theoretical_mpa]
 
-    plt.subplot(1, 3, 3)
+    plt.subplot(133)
     
     plt.plot(xaxis,[float(mpa[1]) for mpa in theoretical_mpa], 'r-', label='Theoretical MPA', marker='s', markersize=3, linewidth=2)
     plt.plot(xaxis,tracking_mpa, 'b--', label='RL Tracking Angle', marker='s', markersize=4)

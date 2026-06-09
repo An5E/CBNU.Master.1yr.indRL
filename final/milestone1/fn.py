@@ -46,7 +46,7 @@ def getMPAHourly(src: pd.DataFrame, startHour=6, endHour=18, max_power=220):
     }
     
     df = pd.DataFrame(data)
-    tilt_range = np.linspace(0, 80, 81)  # X축: 패널 기울기 (0~80도, .5도 단위)
+    tilt_range = np.linspace(0, 30, 31)  # X축: 패널 기울기 (0~30도, 1도 단위)
     panel_azimuth = 180  # 패널 설치 방향 (정남향)
 
     for i, row in df.iterrows():
