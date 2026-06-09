@@ -27,12 +27,12 @@ def main():
 
         # ! 시간 값은 상태에 포함되지 않음
         for h_idx, hour in enumerate(hours):
-            while True:
-            # for i in range(10):
+            # while True:
+            for i in range(60):
                 action = agent.getAction(state)
                 
                 next_state, reward, done = env.step(action, hour)
-
+                # print(f"state: {state}, action: {action} => next_state: {next_state}, reward: {reward}")
                 agent.update(state, action, reward, next_state, done)
                 
                 
@@ -54,7 +54,7 @@ def main():
     print(agent.Q.keys())
     print(np.array(list(agent.Q.values())))
 
-    init_state = 0
+    init_angle = 0
     
     # print([x * 2 for x in [-2, -1, 0, 1, 2]])
     
@@ -67,9 +67,11 @@ def main():
 
         print(f"{i+6}h:{best_action_idx},{agent.Q[i,best_action_idx]}")
 
-        init_state = init_state + [x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx]
+        next_state = init_angle + [x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx]
+        if next_state > 0 and next_state < 30:
+            init_angle = next_state
 
-        tracking_mpa.append(init_state)
+        tracking_mpa.append(init_angle)
 
     debug_print("## tracking_mpa")
     debug_print(tracking_mpa)
