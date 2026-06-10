@@ -4,9 +4,11 @@ import matplotlib.pyplot as plt
 from environment import Environment
 from agent import TrackerAgent
 
-from fn import getHourlySolarPos, getMPAHourly, debug_print
+from fn import getHourlySolarPos, getMPAHourly, getSolarPower, debug_print
 from glb import startHr, endHr 
 import pandas as pd
+
+import random
 
 
 def main():
@@ -24,6 +26,7 @@ def main():
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 State
+        # hour = int(random.uniform(6, 18))
 
         # ! 시간 값은 상태에 포함되지 않음
         for h_idx, hour in enumerate(hours):
@@ -35,21 +38,18 @@ def main():
                 # print(f"state: {state}, action: {action} => next_state: {next_state}, reward: {reward}")
                 agent.update(state, action, reward, next_state, done)
                 
+                print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
+                
                 
                 if done: 
-                #     if hour == 6:
-                    print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
-                #         debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
-                
+                    print(f" DONE episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")        
                     break
-                
+            
                 state = next_state
 
     # ! Figure 6 재현
     tracking_mpa = []
     possible_angles = np.linspace(0, 30, 31)
-
-    st = 0
 
     print(agent.Q.keys())
     print(np.array(list(agent.Q.values())))
@@ -59,13 +59,14 @@ def main():
     # print([x * 2 for x in [-2, -1, 0, 1, 2]])
     
     for i in range(len(hours)+1):
+        # * 현재 angle의 state 기준
+        # theoretical_mpa[i]  getSolarPower(i, init_angle)
+        
         best_action_idx = np.argmax([agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4]])
         debug_print(f"{i} , {best_action_idx}: {max(agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4])}")
-
-        st += possible_angles[best_action_idx]
         # tracking_mpa.append(st)
 
-        print(f"{i+6}h:{best_action_idx},{agent.Q[i,best_action_idx]}")
+        print(f"{i+6}h:{best_action_idx}({[x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx]}),{agent.Q[i,best_action_idx]}")
 
         next_state = init_angle + [x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx]
         if next_state > 0 and next_state < 30:

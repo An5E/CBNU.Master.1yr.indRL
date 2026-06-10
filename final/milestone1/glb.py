@@ -1,3 +1,3 @@
 
 startHr = 6
-endHr = 12
+endHr = 18

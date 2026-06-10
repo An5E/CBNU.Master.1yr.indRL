@@ -85,3 +85,7 @@ def getRewardFromMPA(hour: int, tilt_angle: float, startHour=6, endHour=18):
     # print(f"  {hour}, {tilt_angle} => {int(tilt_angle)}")
     # print(l_mpa)
     return l_mpa[hour-6][4][int(tilt_angle)] if hour >= startHour and hour <= (endHour-1) else 0
+
+def getSolarPower(hour, tilt_angle):        
+        # ? {hour} 곡선에서 x={tilt_angle}인 y값 구하기. l_mpa에서 참조
+        return max(0, getRewardFromMPA(hour, tilt_angle, startHour=startHr, endHour=endHr))

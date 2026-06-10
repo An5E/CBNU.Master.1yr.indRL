@@ -56,7 +56,9 @@ class Environment:
         if next_angle < 0 or next_angle > 30:
             next_angle = current_angle
 
-        print(f"  env=> hour:{hour}, current_angle: {current_angle}, action: {action}, next_angle: {next_angle}")
+        p_now = self.getSolarPower(hour, next_angle)
+        p = self.getSolarPower(hour, current_angle)
+        # print(f"  env=> hour:{hour}, current_angle: {current_angle}, action: {action}, next_angle: {next_angle} | p_now: {p_now}, p: {p}, delta: {p_now-p}")
 
         return self.getSolarPower(hour, next_angle) - self.getSolarPower(hour, current_angle), next_angle
     
@@ -68,7 +70,7 @@ class Environment:
         reward, next_angle = self.reward(angle, hour, action)
         next_state = self.next_state(reward)
         
-        done = False # (state_ < 0 or state_ > 30)  # ! 보상(발전량 변화율)이 변화하면 종료
+        done = next_state == 2 # False # (state_ < 0 or state_ > 30)  # ! 보상(발전량 변화율)이 변화하면 종료
         
         if done:
             print(f"reward:: state: {state}->{next_state}, action: {action}, hour: {hour}")
@@ -76,5 +78,4 @@ class Environment:
         self.agent_state = next_state
         self.agent_angle = next_angle
 
-        print(f"  after step=> self.agent_state")
         return next_state, reward, done
