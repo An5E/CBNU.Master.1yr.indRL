@@ -30,6 +30,8 @@ class Environment:
     # ! %6~7, %13~14: update state
     def next_state(self, reward):
         
+        # * (reward == 0) != MPA 각도 도달 (Rest)
+        # * (시간대 MPA - reward) 결과를 next_state로 전달해야 함
         if reward > 0:
             next_state = 0
         elif reward < 0:
@@ -41,6 +43,7 @@ class Environment:
         
     def getSolarPower(self, hour, tilt_angle):        
         # ? {hour} 곡선에서 x={tilt_angle}인 y값 구하기. l_mpa에서 참조
+        print(f"""  hr:{hour}, ta:{tilt_angle}""")
         return max(0, getRewardFromMPA(hour, tilt_angle, startHour=startHr, endHour=endHr))
 
     # ! %7, %15: reward = p_now-p
@@ -58,9 +61,9 @@ class Environment:
 
         p_now = self.getSolarPower(hour, next_angle)
         p = self.getSolarPower(hour, current_angle)
-        # print(f"  env=> hour:{hour}, current_angle: {current_angle}, action: {action}, next_angle: {next_angle} | p_now: {p_now}, p: {p}, delta: {p_now-p}")
+        print(f"  env=> hour:{hour}, current_angle: {current_angle}, action: {action}, next_angle: {next_angle} | p_now: {p_now}, p: {p}, delta: {p_now-p}")
 
-        return self.getSolarPower(hour, next_angle) - self.getSolarPower(hour, current_angle), next_angle
+        return p_now-p, next_angle
     
     def step(self, action, hour):
         angle = self.agent_angle
@@ -72,8 +75,9 @@ class Environment:
         
         done = next_state == 2 # False # (state_ < 0 or state_ > 30)  # ! 보상(발전량 변화율)이 변화하면 종료
         
-        if done:
-            print(f"reward:: state: {state}->{next_state}, action: {action}, hour: {hour}")
+        print(f"reward:: state: {state}->{next_state}, next_angle:{next_angle}, action: {action}, hour: {hour}")
+        # if done:
+            # print(f"reward:: state: {state}->{next_state}, next_angle:{next_angle}, action: {action}, hour: {hour}")
 
         self.agent_state = next_state
         self.agent_angle = next_angle

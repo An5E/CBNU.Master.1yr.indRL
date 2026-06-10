@@ -16,7 +16,7 @@ def main():
     
     solpos = getHourlySolarPos() # 0 ~ 23h : (azimuth, zenith)
     l_mpa = getMPAHourly(solpos[['azimuth','zenith']], startHr, endHr, panelCapacity)
-        
+
     hours = np.arange(startHr, endHr)          # 6:00 ~ 18:00
     
     env = Environment()
@@ -34,15 +34,16 @@ def main():
             for i in range(60):
                 action = agent.getAction(state)
                 
+                # * l_mpa에서 MPA 참조할 것
                 next_state, reward, done = env.step(action, hour)
                 # print(f"state: {state}, action: {action} => next_state: {next_state}, reward: {reward}")
                 agent.update(state, action, reward, next_state, done)
                 
-                print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")
+                print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 
                 
                 if done: 
-                    print(f" DONE episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}")        
+                    print(f" DONE episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}\n")        
                     break
             
                 state = next_state
@@ -74,8 +75,6 @@ def main():
 
         tracking_mpa.append(init_angle)
 
-    debug_print("## tracking_mpa")
-    debug_print(tracking_mpa)
 
     # ! 차트 출력
     plt.figure(figsize=(14, 4))
@@ -97,6 +96,7 @@ def main():
     plt.title("Fig 5`. MPA Curves for Each Hour")
     
     theoretical_mpa = [(h, mpa_tilt) for h, mpa_tilt, _, _, _ in l_mpa]
+
     xaxis = [mpa[0] for mpa in theoretical_mpa]
 
     plt.subplot(133)
