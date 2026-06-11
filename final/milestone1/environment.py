@@ -37,13 +37,14 @@ class Environment:
         elif reward < 0:
             next_state = 1
         else:
+            
             next_state = 2
 
         return next_state
         
     def getSolarPower(self, hour, tilt_angle):        
         # ? {hour} 곡선에서 x={tilt_angle}인 y값 구하기. l_mpa에서 참조
-        print(f"""  hr:{hour}, ta:{tilt_angle}""")
+        # print(f"""  hr:{hour}, ta:{tilt_angle}""")
         return max(0, getRewardFromMPA(hour, tilt_angle, startHour=startHr, endHour=endHr))
 
     # ! %7, %15: reward = p_now-p
@@ -61,11 +62,11 @@ class Environment:
 
         p_now = self.getSolarPower(hour, next_angle)
         p = self.getSolarPower(hour, current_angle)
-        print(f"  env=> hour:{hour}, current_angle: {current_angle}, action: {action}, next_angle: {next_angle} | p_now: {p_now}, p: {p}, delta: {p_now-p}")
+        debug_print(f"  env=> hour:{hour}, current_angle: {current_angle}, action: {action}, next_angle: {next_angle} | p_now: {p_now}, p: {p}, delta: {p_now-p}")
 
         return p_now-p, next_angle
     
-    def step(self, action, hour):
+    def step(self, action, hour, changed):
         angle = self.agent_angle
         state = self.agent_state
         
@@ -73,13 +74,13 @@ class Environment:
         reward, next_angle = self.reward(angle, hour, action)
         next_state = self.next_state(reward)
         
-        done = next_state == 2 # False # (state_ < 0 or state_ > 30)  # ! 보상(발전량 변화율)이 변화하면 종료
+        done = next_state == 2 and changed # False # (state_ < 0 or state_ > 30)  # ! 보상(발전량 변화율)이 변화하면 종료
         
-        print(f"reward:: state: {state}->{next_state}, next_angle:{next_angle}, action: {action}, hour: {hour}")
+        debug_print(f"reward:: state: {state}->{next_state}, next_angle:{next_angle}, action: {action}, hour: {hour}")
         # if done:
             # print(f"reward:: state: {state}->{next_state}, next_angle:{next_angle}, action: {action}, hour: {hour}")
 
-        self.agent_state = next_state
+        self.agent_state = next_state if changed else state
         self.agent_angle = next_angle
 
         return next_state, reward, done

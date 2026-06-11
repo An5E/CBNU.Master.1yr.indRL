@@ -86,7 +86,7 @@ pd.DataFrame(l_mpa).to_csv(".\l_mpa2.csv")
 def getRewardFromMPA(hour: int, tilt_angle: float, startHour=6, endHour=18):
     # print(f"  {hour}, {tilt_angle} => {int(tilt_angle)}")
     # print(l_mpa)
-    print(f"  grfmpa({hour},{tilt_angle}):: {l_mpa[hour-6][4][int(tilt_angle)]}")
+    # print(f"  grfmpa({hour},{tilt_angle}):: {l_mpa[hour-6][4][int(tilt_angle)]}")
 
     return l_mpa[hour-6][4][int(tilt_angle)] # if hour >= startHour and hour <= (endHour-1) else 0
 

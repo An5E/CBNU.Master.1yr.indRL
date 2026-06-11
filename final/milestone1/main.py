@@ -22,7 +22,7 @@ def main():
     env = Environment()
     agent = TrackerAgent()
 
-    episodes = 5 # 2000
+    episodes = 500 # 2000
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 State
@@ -31,19 +31,24 @@ def main():
         # ! 시간 값은 상태에 포함되지 않음
         for h_idx, hour in enumerate(hours):
             # while True:
+            changed = False # * reward 변경 감지 변수
             for i in range(60):
                 action = agent.getAction(state)
                 
                 # * l_mpa에서 MPA 참조할 것
-                next_state, reward, done = env.step(action, hour)
+                next_state, reward, done = env.step(action, hour, changed)
+                
+                if reward != 0:
+                    changed = True
+                
                 # print(f"state: {state}, action: {action} => next_state: {next_state}, reward: {reward}")
                 agent.update(state, action, reward, next_state, done)
                 
-                print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, agent.Q[{state},{action}]: {agent.Q[state, action]}")
+                debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 
                 
                 if done: 
-                    print(f" DONE episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}\n")        
+                    debug_print(f" DONE episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}\n")        
                     break
             
                 state = next_state
