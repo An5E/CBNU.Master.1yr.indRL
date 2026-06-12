@@ -17,12 +17,12 @@ def main():
     solpos = getHourlySolarPos() # 0 ~ 23h : (azimuth, zenith)
     l_mpa = getMPAHourly(solpos[['azimuth','zenith']], startHr, endHr, panelCapacity)
 
-    hours = np.arange(startHr, endHr)          # 6:00 ~ 18:00
+    hours = np.arange(startHr, endHr+1)          # 6:00 ~ 18:00
     
     env = Environment()
     agent = TrackerAgent()
 
-    episodes = 500 # 2000
+    episodes = 1000 # 2000
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 State
@@ -31,20 +31,16 @@ def main():
         # ! 시간 값은 상태에 포함되지 않음
         for h_idx, hour in enumerate(hours):
             # while True:
-            changed = False # * reward 변경 감지 변수
             for i in range(60):
-                action = agent.getAction(state)
+                action = agent.getAction(hour, state)
                 
                 # * l_mpa에서 MPA 참조할 것
-                next_state, reward, done = env.step(action, hour, changed)
-                
-                if reward != 0:
-                    changed = True
+                next_state, reward, done = env.step(action, hour)
                 
                 # print(f"state: {state}, action: {action} => next_state: {next_state}, reward: {reward}")
-                agent.update(state, action, reward, next_state, done)
+                agent.update(hour, state, action, reward, next_state, done)
                 
-                debug_print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, agent.Q[{state},{action}]: {agent.Q[state, action]}")
+                # print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, agent.Q[{state},{action}]: {agent.Q[state, action]}")
                 
                 
                 if done: 
@@ -56,29 +52,37 @@ def main():
     # ! Figure 6 재현
     tracking_mpa = []
     possible_angles = np.linspace(0, 30, 31)
-
-    print(agent.Q.keys())
-    print(np.array(list(agent.Q.values())))
-
-    init_angle = 0
     
+    pd.DataFrame(agent.Q.items()).to_csv("./result.csv")
+    
+    
+    init_angle = 0
+    current_state = 2
     # print([x * 2 for x in [-2, -1, 0, 1, 2]])
     
-    for i in range(len(hours)+1):
+    for hour in hours:
+        print(f"hour:{hour}")
         # * 현재 angle의 state 기준
         # theoretical_mpa[i]  getSolarPower(i, init_angle)
         
-        best_action_idx = np.argmax([agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4]])
-        debug_print(f"{i} , {best_action_idx}: {max(agent.Q[i, 0],agent.Q[i, 1], agent.Q[i, 2], agent.Q[i, 3], agent.Q[i, 4])}")
+        qs = [agent.Q[(hour, current_state, a)] for a in range(5)]
+        best_action_idx = np.argmax(qs)
+        debug_print(f"{hour} , {best_action_idx}: {max(qs)}")
         # tracking_mpa.append(st)
 
-        print(f"{i+6}h:{best_action_idx}({[x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx]}),{agent.Q[i,best_action_idx]}")
+        move = [x * env.angle_factor for x in [-2, -1, 0, 1, 2]][best_action_idx]
 
-        next_state = init_angle + [x * 2 for x in [-2, -1, 0, 1, 2]][best_action_idx]
-        if next_state > 0 and next_state < 30:
-            init_angle = next_state
+        print(f"{hour}h:{best_action_idx}({move}),{agent.Q[(hour, current_state,best_action_idx)]}")
+
+        next_angle = init_angle + move
+        if 0 <= next_angle <= 30:
+            init_angle = next_angle
 
         tracking_mpa.append(init_angle)
+
+        p_next = env.getSolarPower(hour, next_angle)
+        p_curr = env.getSolarPower(hour, init_angle)
+        current_state = env.next_state(p_next-p_curr)
 
 
     # ! 차트 출력
@@ -105,6 +109,9 @@ def main():
     xaxis = [mpa[0] for mpa in theoretical_mpa]
 
     plt.subplot(133)
+    
+    print(xaxis)
+    print(tracking_mpa)
     
     plt.plot(xaxis,[float(mpa[1]) for mpa in theoretical_mpa], 'r-', label='Theoretical MPA', marker='s', markersize=3, linewidth=2)
     plt.plot(xaxis,tracking_mpa, 'b--', label='RL Tracking Angle', marker='s', markersize=4)

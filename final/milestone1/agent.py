@@ -12,8 +12,8 @@ def argmax(xs):
     return selected
 
 
-def greedy_probs(Q, state, epsilon=0, action_size=4):
-    qs = [Q[(state, action)] for action in range(action_size)]
+def greedy_probs(Q, hour, state, epsilon=0, action_size=4):
+    qs = [Q[(hour, state, action)] for action in range(action_size)]
     max_action = argmax(qs)  # OR np.argmax(qs)
     base_prob = epsilon / action_size
     action_probs = {action: base_prob for action in range(action_size)}  #{0: ε/4, 1: ε/4, 2: ε/4, 3: ε/4}
@@ -23,7 +23,7 @@ def greedy_probs(Q, state, epsilon=0, action_size=4):
 class TrackerAgent:
     def __init__(self):
         self.gamma = 0.9
-        self.alpha = 0.1
+        self.alpha = 0.2
         self.epsilon = 0.1 # ! e-greedy 계수 ( 0.8 )
         
         self.action_size = 5
@@ -33,19 +33,24 @@ class TrackerAgent:
         self.tilt_degree = 0
         
     # ! %(3,5), %(11,12): chosen_action
-    def getAction(self, state):
-        action_probs = self.b[state]
-        actions = list(action_probs.keys())
-        probs = list(action_probs.values())
-        return np.random.choice(actions, p=probs)
+    def getAction(self, hour, state):
+        # action_probs = self.b[state]
+        # actions = list(action_probs.keys())
+        # probs = list(action_probs.values()) 
         
-    def update(self, state, action, reward, next_state, done):
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(self.action_size)
+        else:
+            qs = [self.Q[(hour, state, a)] for a in range(self.action_size)]
+            return np.argmax(qs)
+        
+    def update(self, hour, state, action, reward, next_state, done):
         if done:
             next_q_max = 0
         else:
-            next_qs = [self.Q[next_state, a] for a in range(self.action_size)]
+            next_qs = [self.Q[(hour,next_state, a)] for a in range(self.action_size)]
             next_q_max = max(next_qs)
             
         target = reward + self.gamma * next_q_max
-        self.Q[state, action] += self.alpha * (target - self.Q[state, action])
-        self.b[state] = greedy_probs(self.Q, state, self.epsilon)
+        self.Q[(hour, state, action)] += self.alpha * (target - self.Q[(hour, state, action)])
+        # self.b[state] = greedy_probs(self.Q, hour, state, self.epsilon)
