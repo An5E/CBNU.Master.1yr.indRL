@@ -56,34 +56,40 @@ def main():
     pd.DataFrame(agent.Q.items()).to_csv("./result.csv")
     
     
-    init_angle = 0
     current_state = 2
     # print([x * 2 for x in [-2, -1, 0, 1, 2]])
+    init_angle = 0
     
     for hour in hours:
-        print(f"hour:{hour}")
-        # * 현재 angle의 state 기준
-        # theoretical_mpa[i]  getSolarPower(i, init_angle)
-        
+        ias = []
         qs = [agent.Q[(hour, current_state, a)] for a in range(5)]
-        best_action_idx = np.argmax(qs)
-        debug_print(f"{hour} , {best_action_idx}: {max(qs)}")
-        # tracking_mpa.append(st)
+        
+        for i in range(60):
+            # * 현재 angle의 state 기준
+            # theoretical_mpa[i]  getSolarPower(i, init_angle)
+            
+            
+            best_action_idx = np.argmax(qs)
+            debug_print(f"{hour} , {best_action_idx}: {max(qs)}")
+            # tracking_mpa.append(st)
 
-        move = [x * env.angle_factor for x in [-2, -1, 0, 1, 2]][best_action_idx]
+            move = [x * env.angle_factor for x in [-2, -1, 0, 1, 2]][best_action_idx]
 
-        print(f"{hour}h:{best_action_idx}({move}),{agent.Q[(hour, current_state,best_action_idx)]}")
+            # print(f"{hour}h:{best_action_idx}({move}),{agent.Q[(hour, current_state,best_action_idx)]},ia:{init_angle},mv:{move}")
 
-        next_angle = init_angle + move
-        if 0 <= next_angle <= 30:
-            init_angle = next_angle
+            next_angle = init_angle + move
+            if 0 <= next_angle and next_angle <= 30:
+                init_angle = next_angle
 
-        tracking_mpa.append(init_angle)
+            ias.append(init_angle)
 
-        p_next = env.getSolarPower(hour, next_angle)
-        p_curr = env.getSolarPower(hour, init_angle)
-        current_state = env.next_state(p_next-p_curr)
-
+            p_curr = env.getSolarPower(hour, init_angle)
+            p_next = env.getSolarPower(hour, next_angle) if next_angle < 30 else p_curr
+            current_state = env.next_state(p_next-p_curr)
+            
+        mn = np.mean(ias)
+        print(f"hour:{hour}, mean: {mn}")
+        tracking_mpa.append(mn)
 
     # ! 차트 출력
     plt.figure(figsize=(14, 4))
