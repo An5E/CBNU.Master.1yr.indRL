@@ -50,9 +50,7 @@ def main():
                 state = next_state
 
     # ! Figure 6 재현
-    tracking_mpa = []
-    possible_angles = np.linspace(0, 30, 31)
-    
+    tracking_mpa = []    
     pd.DataFrame(agent.Q.items()).to_csv("./result.csv")
     
     
@@ -62,12 +60,12 @@ def main():
     
     for hour in hours:
         ias = []
-        qs = [agent.Q[(hour, current_state, a)] for a in range(5)]
+        
         
         for i in range(60):
             # * 현재 angle의 state 기준
             # theoretical_mpa[i]  getSolarPower(i, init_angle)
-            
+            qs = [agent.Q[(hour, current_state, a)] for a in range(5)]
             
             best_action_idx = np.argmax(qs)
             debug_print(f"{hour} , {best_action_idx}: {max(qs)}")
@@ -75,18 +73,19 @@ def main():
 
             move = [x * env.angle_factor for x in [-2, -1, 0, 1, 2]][best_action_idx]
 
-            # print(f"{hour}h:{best_action_idx}({move}),{agent.Q[(hour, current_state,best_action_idx)]},ia:{init_angle},mv:{move}")
 
             next_angle = init_angle + move
+            
+            p_curr = env.getSolarPower(hour, init_angle)
+            p_next = env.getSolarPower(hour, next_angle) if 0 <= next_angle and next_angle <= 30 else p_curr
+            
             if 0 <= next_angle and next_angle <= 30:
                 init_angle = next_angle
 
-            ias.append(init_angle)
-
-            p_curr = env.getSolarPower(hour, init_angle)
-            p_next = env.getSolarPower(hour, next_angle) if next_angle < 30 else p_curr
             current_state = env.next_state(p_next-p_curr)
             
+            print(f"{hour}h:{best_action_idx}({move}) ,s:{current_state}, p':{p_next}, p:{p_curr},diff:{p_next-p_curr} ,{agent.Q[(hour, current_state,best_action_idx)]},ia:{init_angle} na:{next_angle}, mv:{move}")
+            ias.append(init_angle)
         mn = np.mean(ias)
         print(f"hour:{hour}, mean: {mn}")
         tracking_mpa.append(mn)
@@ -97,7 +96,7 @@ def main():
     plt.plot(solpos['azimuth'], marker='s', markersize=3, color='r', label="azimuth angle")
     plt.plot(solpos['zenith'], marker='s', markersize=3, color='b', label="zenith angle")
     plt.legend()
-    plt.ylabel('Angle (deg)')
+    plt.ylabel('Tilt Angle (deg)')
     plt.xlabel('Hour of Day (h)')
     plt.title('Fig 4`. 2012-08-02 Solar position in Albuquerque')
 
@@ -107,7 +106,7 @@ def main():
         plt.scatter(mpa_tilt, max_p, color='black', s=40, edgecolor='black', zorder=5)
     plt.legend()
     plt.ylabel('Power (W)')
-    plt.xlabel('Hour of Day (h)')
+    plt.xlabel('Tilt Angle (deg)')
     plt.title("Fig 5`. MPA Curves for Each Hour")
     
     theoretical_mpa = [(h, mpa_tilt) for h, mpa_tilt, _, _, _ in l_mpa]
@@ -120,7 +119,7 @@ def main():
     print(tracking_mpa)
     
     plt.plot(xaxis,[float(mpa[1]) for mpa in theoretical_mpa], 'r-', label='Theoretical MPA', marker='s', markersize=3, linewidth=2)
-    plt.plot(xaxis,tracking_mpa, 'b--', label='RL Tracking Angle', marker='s', markersize=4)
+    plt.plot(xaxis,tracking_mpa, 'b--', label='mean(RL Tracking Angle) per hour', marker='s', markersize=4)
     
     plt.title('Fig 6`: Q-learned Tracking vs Theoretical MPA')
     plt.xlabel('Hour of Day (h)')
