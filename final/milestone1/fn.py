@@ -80,7 +80,6 @@ def getMPAHourly(src: pd.DataFrame, startHour=6, endHour=18, max_power=220):
 solpos = getHourlySolarPos()
 l_mpa = getMPAHourly(solpos[['azimuth','zenith']], startHr, endHr, 220)
 
-pd.DataFrame(l_mpa).to_csv(".\l_mpa2.csv")
 
 # ! Hour input range: 6 ~ 18
 def getRewardFromMPA(hour: int, tilt_angle: float, startHour=6, endHour=18):

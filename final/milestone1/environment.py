@@ -1,4 +1,4 @@
-from fn import getRewardFromMPA, debug_print
+from fn import getRewardFromMPA
 from glb import startHr, endHr
 
 class Environment:
@@ -15,9 +15,6 @@ class Environment:
         self.angle_factor = 2
         self.action_move_map = [x * self.angle_factor for x in [-2, -1, 0, 1, 2]] 
                 
-        # self.goal_state = (12, 0) # ! MPA 경사각 , (time, tilt_angle)
-        # self.start_state = (0, self.init_tilt) # ! 초기 경사각
-        
         self.start_state = 2 # ! 초기 state
         self.start_angle = 0
         self.agent_state = self.start_state
@@ -30,14 +27,11 @@ class Environment:
     # ! %6~7, %13~14: update state
     def next_state(self, reward):
         
-        # * (reward == 0) != MPA 각도 도달 (Rest)
-        # * (시간대 MPA - reward) 결과를 next_state로 전달해야 함
         if reward > 0:
             next_state = 0
         elif reward < 0:
             next_state = 1
-        else:
-            
+        else:    
             next_state = 2
 
         return next_state
@@ -49,8 +43,7 @@ class Environment:
 
     # ! %7, %15: reward = p_now-p
     def reward(self, current_angle, hour, action):
-        # ! 발전량 최대치가 나오는 경사각으로 이동
-        # ! MPA 곡선은 비교 예시 데이터일 뿐, 추종할 값이 아님                
+        # ! 발전량 최대치가 나오는 경사각으로 이동           
         
         # ! delta pwr
         move = self.action_move_map[action]
@@ -63,9 +56,6 @@ class Environment:
         p_now = self.getSolarPower(hour, next_angle)
         p = self.getSolarPower(hour, current_angle)
         
-        # if action != 2:
-            # print(f"  env=> hour:{hour}, action: {action}, angle:{current_angle}, angle':{next_angle} | p_now: {p_now}, p: {p}, delta: {p_now-p}")
-
         return p_now-p, next_angle
     
     def step(self, action, hour):
@@ -78,10 +68,6 @@ class Environment:
         
         done = False # next_state == 2  # False # (state_ < 0 or state_ > 30)  # ! 보상(발전량 변화율)이 변화하면 종료
         
-        # debug_print(f"reward:: state: {state}->{next_state}, next_angle:{next_angle}, action: {action}, hour: {hour}")
-        # if done:
-            # print(f"reward:: state: {state}->{next_state}, next_angle:{next_angle}, action: {action}, hour: {hour}")
-
         self.agent_state = next_state
         self.agent_angle = next_angle
 

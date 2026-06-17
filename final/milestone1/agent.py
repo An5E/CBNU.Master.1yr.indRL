@@ -24,19 +24,14 @@ class TrackerAgent:
     def __init__(self):
         self.gamma = 0.9
         self.alpha = 0.01
-        self.epsilon = 0.02 # ! e-greedy 계수 ( 0.8 )
+        self.epsilon = 0.02  
         
         self.action_size = 5
-        random_actions = {0:.20, 1:.20, 2:.20, 3:.20, 4:.20}
-        self.b = defaultdict(lambda: random_actions)
         self.Q = defaultdict(lambda: 0)
         self.tilt_degree = 0
         
     # ! %(3,5), %(11,12): chosen_action
     def getAction(self, hour, state):
-        # action_probs = self.b[state]
-        # actions = list(action_probs.keys())
-        # probs = list(action_probs.values()) 
         
         if np.random.rand() < self.epsilon:
             return np.random.choice(self.action_size)

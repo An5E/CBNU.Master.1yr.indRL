@@ -1,14 +1,12 @@
-import numpy as np
-import matplotlib.pyplot as plt
-
-from environment import Environment
-from agent import TrackerAgent
-
-from fn import getHourlySolarPos, getMPAHourly, getSolarPower, debug_print
-from glb import startHr, endHr 
-import pandas as pd
-
 import random
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from agent import TrackerAgent
+from environment import Environment
+from fn import debug_print, getHourlySolarPos, getMPAHourly, getSolarPower
+from glb import endHr, startHr
 
 
 def main():
@@ -22,45 +20,33 @@ def main():
     env = Environment()
     agent = TrackerAgent()
 
-    episodes = 1000 # 2000
+    # ! 모델 훈련 부분
+    episodes = 1000
     for ep in range(episodes):
         # 초기 각도 설정
         state = env.reset() # ! 초기 State
-        # hour = int(random.uniform(6, 18))
 
-        # ! 시간 값은 상태에 포함되지 않음
-        for h_idx, hour in enumerate(hours):
-            # while True:
+        for hour in enumerate(hours):
             for i in range(60):
                 action = agent.getAction(hour, state)
                 
-                # * l_mpa에서 MPA 참조할 것
-                next_state, reward, done = env.step(action, hour)
-                
-                # print(f"state: {state}, action: {action} => next_state: {next_state}, reward: {reward}")
+                next_state, reward, done = env.step(action, hour)                
                 agent.update(hour, state, action, reward, next_state, done)
                 
-                # print(f"episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, agent.Q[{state},{action}]: {agent.Q[state, action]}")
-                
-                
                 if done: 
-                    debug_print(f" DONE episode: {ep}, hour: {hour}, state: {state}, action: {action}, next_state: {next_state}, reward: {reward}, done: {done} ... agent.Q[{state},{action}]: {agent.Q[state, action]}\n")        
                     break
             
                 state = next_state
 
-    # ! Figure 6 재현
-    tracking_mpa = []    
-    pd.DataFrame(agent.Q.items()).to_csv("./result.csv")
-    
+
+    # ! Figure 6 재현 부분
+    tracking_mpa = []
     
     current_state = 2
-    # print([x * 2 for x in [-2, -1, 0, 1, 2]])
     init_angle = 0
     
     for hour in hours:
         ias = []
-        
         
         for i in range(60):
             # * 현재 angle의 state 기준
@@ -68,11 +54,8 @@ def main():
             qs = [agent.Q[(hour, current_state, a)] for a in range(5)]
             
             best_action_idx = np.argmax(qs)
-            debug_print(f"{hour} , {best_action_idx}: {max(qs)}")
-            # tracking_mpa.append(st)
 
             move = [x * env.angle_factor for x in [-2, -1, 0, 1, 2]][best_action_idx]
-
 
             next_angle = init_angle + move
             
@@ -84,10 +67,8 @@ def main():
 
             current_state = env.next_state(p_next-p_curr)
             
-            print(f"{hour}h:{best_action_idx}({move}) ,s:{current_state}, p':{p_next}, p:{p_curr},diff:{p_next-p_curr} ,{agent.Q[(hour, current_state,best_action_idx)]},ia:{init_angle} na:{next_angle}, mv:{move}")
             ias.append(init_angle)
         mn = np.mean(ias)
-        print(f"hour:{hour}, mean: {mn}")
         tracking_mpa.append(mn)
 
     # ! 차트 출력
@@ -115,9 +96,6 @@ def main():
 
     plt.subplot(133)
     
-    print(xaxis)
-    print(tracking_mpa)
-    
     plt.plot(xaxis,[float(mpa[1]) for mpa in theoretical_mpa], 'r-', label='Theoretical MPA', marker='s', markersize=3, linewidth=2)
     plt.plot(xaxis,tracking_mpa, 'b--', label='mean(RL Tracking Angle) per hour', marker='s', markersize=4)
     
@@ -129,10 +107,6 @@ def main():
 
     plt.tight_layout()
     plt.show()
-
-    # MAE 출력
-    # mae = np.mean(np.abs(np.array(tracking_mpa) - np.array([float(mpa[1]) for mpa in theoretical_mpa])))
-    # print(f"재현 결과 Mean Absolute Error (MAE): {mae:.4f} degrees")
-
+    
 if __name__ == "__main__":
     main()
