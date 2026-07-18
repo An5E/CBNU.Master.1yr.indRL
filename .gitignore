@@ -2,11 +2,13 @@
 *.pptx
 *.txt
 *.png
+
+
 *.lnk
 book
 **/__pycache__
 *.pyc
 
 indRL
-
+!**/public-assets/*
 *.zip

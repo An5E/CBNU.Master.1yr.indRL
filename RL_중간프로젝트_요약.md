@@ -37,7 +37,7 @@
 
 ### 📜 논문 선정  
   
-![alt text](image-1.png)  
+![alt text](public-assets/image-1.png)  
 
 - 22년 9월, 산업 IoT 및 빅데이터, 공급망 사슬 분야 국제 컨퍼런스 (IIoTBDSC, 베이징) 발표 논문  
 
@@ -45,37 +45,37 @@
   
 ### 📄 요약  
   
-![alt text](image-2.png)  
+![alt text](public-assets/image-2.png)  
 
 
 ### 🖇️ 연구 분야 및 현업 연관성  
   
-![alt text](image-3.png)  
+![alt text](public-assets/image-3.png)  
 
 ### 🏁 RL 모델 설정  
   
-![alt text](image-4.png)  
+![alt text](public-assets/image-4.png)  
   
 ### 🎛️ 정책 제어 (Policy Control)  
   
-![alt text](image-5.png)  
+![alt text](public-assets/image-5.png)  
   
 ### 🛠️ 정책 평가 (Policy Evaluation)  
   
-![alt text](image-6.png)  
+![alt text](public-assets/image-6.png)  
   
 ### ▶️ ~~실증~~ 재현 순서  
   
-![alt text](image-7.png)  
+![alt text](public-assets/image-7.png)  
   
 ### ⏹️ ~~실증~~ 재현 결과  
   
-![alt text](image-8.png)  
+![alt text](public-assets/image-8.png)  
   
-![alt text](image-9.png)  
+![alt text](public-assets/image-9.png)  
 
 ### 💡 개선 아이디어 및 고찰     
-![alt text](image-10.png)  
+![alt text](public-assets/image-10.png)  
   
 
 ## 💡 고찰  
