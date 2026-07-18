@@ -19,7 +19,7 @@
 ## 본론  
 ### 🅿️ 문제 접근  
   
-![alt text](image.png)  
+![alt text](public-assets/image.png)  
 
  - 주제 구상 후보군 중 다음 조건 부합하는 주제 선택  
   
